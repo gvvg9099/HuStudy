@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HuStudy — Nền tảng học tập sinh viên</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { DEFAULT: '#1B2A4A', light: '#2D4A7A', dark: '#111d31' },
+            accent: { DEFAULT: '#3B82F6', hover: '#2563EB' },
+          },
+          fontFamily: { sans: ['Be Vietnam Pro', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Be Vietnam Pro', sans-serif; background: #F8F9FC; color: #111827; }
+
+    /* Page switching */
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Modals */
+    .modal-wrap { display: none; position: fixed; inset: 0; background: rgba(10,20,40,.55); z-index: 200; backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+    .modal-wrap.open { display: flex; }
+    .modal-box { animation: fadeIn .2s ease; position: relative; }
+
+    /* Cards */
+    .doc-card { transition: box-shadow .2s, transform .2s; cursor: pointer; }
+    .doc-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-2px); }
+    .subject-card { transition: all .2s; cursor: pointer; }
+    .subject-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.09); }
+    .quiz-card { transition: box-shadow .2s; cursor: pointer; }
+    .quiz-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); }
+
+    /* Sidebar active item */
+    .sb-item { border-left: 3px solid transparent; transition: all .15s; }
+    .sb-item:hover { background: #F1F5F9; border-left-color: #CBD5E1; }
+    .sb-item.active { background: #EFF6FF; border-left-color: #3B82F6; color: #2563EB; font-weight: 600; }
+
+    /* Filter tabs */
+    .f-tab { transition: all .15s; }
+    .f-tab.active { background: #3B82F6; color: #fff; border-color: transparent; }
+
+    /* Favorite button */
+    .fav-btn { color: #D1D5DB; transition: color .2s; }
+    .fav-btn:hover, .fav-btn.on { color: #EF4444; }
+
+    /* Progress */
+    .quiz-bar { height: 5px; background: #E5E7EB; border-radius: 9999px; overflow: hidden; }
+    .quiz-fill { height: 100%; background: linear-gradient(90deg,#3B82F6,#6366F1); border-radius: 9999px; transition: width .3s; }
+
+    /* Quiz option */
+    .q-opt { border: 2px solid #E5E7EB; border-radius: 12px; padding: 14px 18px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 12px; }
+    .q-opt:hover { border-color: #93C5FD; background: #EFF6FF; }
+    .q-opt.chosen { border-color: #3B82F6; background: #EFF6FF; }
+    .q-opt.correct { border-color: #10B981; background: #ECFDF5; }
+    .q-opt.wrong   { border-color: #EF4444; background: #FEF2F2; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 28px; right: 28px; z-index: 999; transition: opacity .3s; }
+    #toast.hide { opacity: 0; pointer-events: none; }
+
+    /* Clamp */
+    .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+
+    /* Nav active underline */
+    .nav-btn.cur { color: #93C5FD; }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: .72rem; font-weight: 600; line-height: 1.6; }
+
+    /* Upload dropzone */
+    .dropzone { border: 2px dashed #CBD5E1; border-radius: 14px; transition: border-color .2s; }
+    .dropzone:hover { border-color: #3B82F6; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══════════════════════  HEADER  ═══════════════════════ -->
+<header style="background:#1B2A4A;" class="sticky top-0 z-50 shadow-md">
+  <div class="max-w-screen-xl mx-auto px-4 lg:px-8">
+    <div class="flex items-center justify-between h-16 gap-4">
+
+      <!-- Logo -->
+      <button onclick="nav('home')" class="flex items-center gap-2.5 flex-shrink-0">
+        <div class="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <span class="text-white font-bold text-lg tracking-wide">HuStudy</span>
+      </button>
+
+      <!-- Search -->
+      <div class="flex-1 max-w-md hidden md:block">
+        <div class="relative">
+          <input id="hdrSearch" type="text" placeholder="Tìm kiếm tài liệu, môn học..."
+            class="w-full bg-white/10 border border-white/20 text-white placeholder-white/45 rounded-full px-5 py-2 text-sm focus:outline-none focus:bg-white/20 focus:border-white/40"
+            onkeydown="if(event.key==='Enter'){doSearch(this.value);}">
+          <button onclick="doSearch(document.getElementById('hdrSearch').value)" class="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <nav class="hidden md:flex items-center gap-1">
+        <button onclick="nav('home')"       id="nb-home"  class="nav-btn text-white/75 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all">Trang chủ</button>
+        <button onclick="nav('documents')"  id="nb-documents" class="nav-btn text-white/75 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all">Tài liệu</button>
+        <button onclick="nav('quiz')"       id="nb-quiz"  class="nav-btn text-white/75 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all">Trắc nghiệm</button>
+        <button onclick="nav('favorites')"  id="nb-favorites" class="nav-btn text-white/75 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all">
+          Yêu thích <span id="favCount" class="hidden ml-1 bg-red-500 text-white text-xs rounded-full px-1.5">0</span>
+        </button>
+        <div id="headerAuthArea" class="flex items-center gap-1">
+          <div class="w-px h-5 bg-white/20 mx-1"></div>
+          <button onclick="openModal('loginMod')"    class="text-white/75 hover:text-white text-sm px-3 py-2 transition-colors">Đăng nhập</button>
+          <button onclick="openModal('registerMod')" class="text-sm bg-blue-500 hover:bg-blue-400 text-white px-4 py-2 rounded-xl font-semibold transition-colors">Đăng ký</button>
+        </div>
+      </nav>
+
+      <!-- Mobile hamburger -->
+      <button onclick="toggleMenu()" class="md:hidden text-white p-2">
+        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobileMenu" class="hidden md:hidden border-t border-white/10" style="background:#162239;">
+    <div class="px-4 py-3 space-y-1">
+      <input type="text" placeholder="Tìm kiếm..." class="w-full bg-white/10 border border-white/20 text-white placeholder-white/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none mb-2">
+      <button onclick="nav('home');toggleMenu()"       class="w-full text-left text-white/75 hover:text-white text-sm px-3 py-2.5 rounded-lg hover:bg-white/10">🏠  Trang chủ</button>
+      <button onclick="nav('documents');toggleMenu()"  class="w-full text-left text-white/75 hover:text-white text-sm px-3 py-2.5 rounded-lg hover:bg-white/10">📄  Tài liệu</button>
+      <button onclick="nav('quiz');toggleMenu()"       class="w-full text-left text-white/75 hover:text-white text-sm px-3 py-2.5 rounded-lg hover:bg-white/10">📝  Trắc nghiệm</button>
+      <button onclick="nav('favorites');toggleMenu()"  class="w-full text-left text-white/75 hover:text-white text-sm px-3 py-2.5 rounded-lg hover:bg-white/10">❤️  Yêu thích</button>
+      <div class="flex gap-2 pt-2">
+        <button onclick="openModal('loginMod')"    class="flex-1 border border-white/25 text-white text-sm py-2.5 rounded-xl">Đăng nhập</button>
+        <button onclick="openModal('registerMod')" class="flex-1 bg-blue-500 text-white text-sm py-2.5 rounded-xl font-semibold">Đăng ký</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<!-- ═══════════════════════  PAGE: HOME  ═══════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- Hero -->
+  <section style="background:linear-gradient(135deg,#1B2A4A 0%,#2D4A7A 55%,#1e3a6e 100%);" class="py-20 px-4">
+    <div class="max-w-3xl mx-auto text-center">
+      <div class="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 mb-5">
+        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+        <span class="text-white/80 text-xs font-medium">2,500+ tài liệu đang chờ bạn</span>
+      </div>
+      <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+        Kho tài liệu học tập<br><span class="text-blue-300">dành cho sinh viên</span>
+      </h1>
+      <p class="text-white/65 text-base md:text-lg mb-8 max-w-xl mx-auto">Tìm kiếm, tải xuống và chia sẻ tài liệu theo từng môn học. Miễn phí, nhanh chóng, tiện lợi.</p>
+
+      <!-- Search box -->
+      <div class="max-w-2xl mx-auto relative mb-5">
+        <input id="heroSearch" type="text" placeholder="Tìm kiếm tài liệu, môn học, từ khóa..."
+          class="w-full bg-white text-gray-800 rounded-2xl px-6 py-4 pr-16 text-base shadow-2xl focus:outline-none focus:ring-2 focus:ring-blue-300"
+          onkeydown="if(event.key==='Enter'){doSearch(this.value);}">
+        <button onclick="doSearch(document.getElementById('heroSearch').value)"
+          class="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2.5 transition-colors">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+      </div>
+
+      <!-- Quick tags -->
+      <div class="flex flex-wrap justify-center gap-2">
+        <span class="text-white/50 text-sm self-center">Tìm nhanh:</span>
+        <button onclick="quickSearch('Toán')"                    class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">📐 Toán</button>
+        <button onclick="quickSearch('Công nghệ thông tin')"     class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">💻 CNTT</button>
+        <button onclick="quickSearch('Lý')"                      class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">⚛️ Vật lý</button>
+        <button onclick="quickSearch('Kinh tế')"                 class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">📊 Kinh tế</button>
+        <button onclick="quickSearch('Ngoại ngữ')"               class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">🌍 Ngoại ngữ</button>
+        <button onclick="quickSearch('Điện')"                    class="text-xs text-blue-200 bg-white/10 hover:bg-white/20 border border-white/15 px-3 py-1.5 rounded-full transition-all">⚡ Điện</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats bar -->
+  <div class="bg-white border-b border-gray-100 shadow-sm">
+    <div class="max-w-screen-xl mx-auto px-4 lg:px-8 py-4 flex flex-wrap gap-6 md:gap-12 justify-center md:justify-start">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+          <svg width="18" height="18" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div><div class="text-xl font-bold text-gray-800">2,500+</div><div class="text-xs text-gray-400">Tài liệu</div></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+          <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div><div class="text-xl font-bold text-gray-800">5,800+</div><div class="text-xs text-gray-400">Sinh viên</div></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+          <svg width="18" height="18" fill="none" stroke="#8B5CF6" stroke-width="2" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        </div>
+        <div><div class="text-xl font-bold text-gray-800">11</div><div class="text-xs text-gray-400">Môn học</div></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center">
+          <svg width="18" height="18" fill="none" stroke="#F59E0B" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div><div class="text-xl font-bold text-gray-800">320+</div><div class="text-xs text-gray-400">Bộ trắc nghiệm</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-screen-xl mx-auto px-4 lg:px-8 py-12">
+
+    <!-- Subjects -->
+    <div class="mb-14">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">Danh mục môn học</h2>
+          <p class="text-sm text-gray-400 mt-0.5">Khám phá tài liệu theo từng môn</p>
+        </div>
+        <button onclick="nav('documents')" class="text-sm text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1">
+          Xem tất cả <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4" id="homeSubjectGrid"></div>
+    </div>
+
+    <!-- Recent docs -->
+    <div class="mb-14">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">Tài liệu mới nhất</h2>
+          <p class="text-sm text-gray-400 mt-0.5">Được tải lên gần đây</p>
+        </div>
+        <button onclick="nav('documents')" class="text-sm text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1">
+          Xem thêm <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" id="homeRecentGrid"></div>
+    </div>
+
+    <!-- Featured quizzes -->
+    <div class="mb-14">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-bold text-gray-800">Bộ trắc nghiệm nổi bật</h2>
+          <p class="text-sm text-gray-400 mt-0.5">Luyện tập và kiểm tra kiến thức</p>
+        </div>
+        <button onclick="nav('quiz')" class="text-sm text-blue-500 hover:text-blue-700 font-semibold flex items-center gap-1">
+          Xem tất cả <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="homeFeaturedQuiz"></div>
+    </div>
+  </div>
+
+  <!-- CTA Banner -->
+  <div style="background:linear-gradient(135deg,#1B2A4A 0%,#2D4A7A 100%);" class="py-16 px-4">
+    <div class="max-w-screen-xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <div>
+        <h2 class="text-2xl md:text-3xl font-bold text-white">Bạn có tài liệu muốn chia sẻ?</h2>
+        <p class="text-white/60 mt-2">Đóng góp tài liệu và giúp đỡ hàng nghìn sinh viên khác học tập tốt hơn.</p>
+      </div>
+      <div class="flex gap-3 flex-shrink-0">
+        <button onclick="openModal('registerMod')" class="bg-blue-500 hover:bg-blue-400 text-white px-7 py-3 rounded-xl font-semibold transition-colors">Đăng ký miễn phí</button>
+        <button onclick="nav('documents')"          class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-medium transition-colors">Khám phá</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  PAGE: DOCUMENTS  ═══════════════════════ -->
+<div id="page-documents" class="page">
+  <div class="max-w-screen-xl mx-auto px-4 lg:px-8 py-8 flex gap-7">
+
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-60 flex-shrink-0">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden sticky top-24">
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <span class="text-sm font-semibold text-gray-700">Môn học</span>
+          <span class="text-xs text-gray-400" id="sbDocCount"></span>
+        </div>
+        <nav class="py-1 max-h-80 overflow-y-auto" id="docSidebar"></nav>
+
+        <div class="px-4 py-3 border-t border-gray-100">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Loại file</p>
+          <label class="flex items-center gap-2 py-1 cursor-pointer"><input type="checkbox" checked class="accent-blue-500 w-3.5 h-3.5"><span class="text-sm text-gray-600">PDF</span></label>
+          <label class="flex items-center gap-2 py-1 cursor-pointer"><input type="checkbox" class="accent-blue-500 w-3.5 h-3.5"><span class="text-sm text-gray-600">Word (DOCX)</span></label>
+          <label class="flex items-center gap-2 py-1 cursor-pointer"><input type="checkbox" class="accent-blue-500 w-3.5 h-3.5"><span class="text-sm text-gray-600">PowerPoint</span></label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 min-w-0">
+      <!-- Toolbar -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <input id="docSearch" type="text" placeholder="Tìm kiếm tài liệu..."
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            oninput="filterDocs()">
+          <svg class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </div>
+        <select onchange="sortDocs(this.value)" class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200">
+          <option value="newest">Mới nhất</option>
+          <option value="downloads">Tải nhiều nhất</option>
+        </select>
+        <button onclick="openModal('uploadMod')" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tải lên
+        </button>
+      </div>
+
+      <!-- Filter chips -->
+      <div class="flex gap-2 mb-5 overflow-x-auto pb-1" id="filterChips"></div>
+
+      <!-- Count + grid -->
+      <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-gray-400" id="docCount">Hiển thị 12 tài liệu</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5" id="docsGrid"></div>
+
+      <!-- Pagination -->
+      <div class="flex justify-center mt-10 gap-1">
+        <button class="px-3 py-2 rounded-lg border border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500 text-sm">&larr;</button>
+        <button class="px-3 py-2 rounded-lg bg-blue-500 text-white text-sm font-semibold">1</button>
+        <button class="px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-500 text-sm">2</button>
+        <button class="px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-500 text-sm">3</button>
+        <span class="px-2 py-2 text-gray-400 text-sm">...</span>
+        <button class="px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-500 text-sm">12</button>
+        <button class="px-3 py-2 rounded-lg border border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500 text-sm">&rarr;</button>
+      </div>
+    </main>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  PAGE: DOC DETAIL  ═══════════════════════ -->
+<div id="page-docdetail" class="page">
+  <div class="max-w-screen-xl mx-auto px-4 lg:px-8 py-8 flex gap-7">
+    <main class="flex-1 min-w-0">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-sm text-gray-400 mb-6">
+        <button onclick="nav('home')" class="hover:text-blue-500 transition-colors">Trang chủ</button>
+        <span>/</span>
+        <button onclick="nav('documents')" class="hover:text-blue-500 transition-colors">Tài liệu</button>
+        <span>/</span>
+        <span id="dd-breadcrumb" class="text-gray-700 font-medium clamp2 max-w-xs"></span>
+      </div>
+
+      <!-- Card -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <div class="flex flex-col md:flex-row gap-6">
+          <div id="dd-thumb" class="w-36 h-48 flex-shrink-0 rounded-xl flex flex-col items-center justify-center border-2 bg-red-50 border-red-100">
+            <svg width="36" height="36" fill="none" stroke="#EF4444" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="text-xs font-bold text-red-400 mt-2">PDF</span>
+          </div>
+          <div class="flex-1">
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span id="dd-subjectBadge" class="badge"></span>
+              <span class="badge bg-green-50 text-green-600">✓ Đã duyệt</span>
+            </div>
+            <h1 id="dd-title" class="text-2xl font-bold text-gray-800 mb-2"></h1>
+            <p id="dd-desc" class="text-gray-500 text-sm mb-4 clamp3"></p>
+            <div class="flex flex-wrap gap-5 text-sm text-gray-400 mb-5">
+              <span class="flex items-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span id="dd-uploader"></span>
+              </span>
+              <span class="flex items-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span id="dd-date"></span>
+              </span>
+              <span class="flex items-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span id="dd-downloads"></span>
+              </span>
+              <span class="flex items-center gap-1.5">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <span id="dd-size"></span>
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-3">
+              <button onclick="downloadDoc()" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Tải xuống
+              </button>
+              <button id="dd-favBtn" onclick="toggleDetailFav()" class="flex items-center gap-2 border border-gray-200 hover:border-red-300 text-gray-500 hover:text-red-500 px-4 py-2.5 rounded-xl text-sm font-medium transition-all">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span id="dd-favLabel">Yêu thích</span>
+              </button>
+              <button onclick="showToast('Đã sao chép liên kết!')" class="flex items-center gap-2 border border-gray-200 hover:border-blue-300 text-gray-500 hover:text-blue-500 px-4 py-2.5 rounded-xl text-sm font-medium transition-all">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Chia sẻ
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Preview (PDF / DOCX / PPTX) -->
+      <div id="dd-preview"></div>
+
+      <!-- Discussion -->
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Thảo luận <span id="dd-commentCount" class="text-sm font-normal text-gray-400"></span>
+        </h2>
+
+        <!-- New comment -->
+        <div class="flex gap-3 mb-6 pb-6 border-b border-gray-100">
+          <div class="w-9 h-9 bg-blue-500 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm">B</div>
+          <div class="flex-1">
+            <textarea id="newComment" rows="3" placeholder="Viết bình luận của bạn..."
+              class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"></textarea>
+            <div class="flex justify-end mt-2">
+              <button onclick="postComment()" class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-colors">Gửi</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="commentsList" class="space-y-5"></div>
+      </div>
+    </main>
+
+    <!-- Right sidebar -->
+    <aside class="hidden lg:block w-72 flex-shrink-0">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sticky top-24">
+        <h3 class="font-semibold text-gray-700 text-sm mb-4">Tài liệu liên quan</h3>
+        <div id="relatedDocs" class="space-y-4"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  PAGE: QUIZ  ═══════════════════════ -->
+<div id="page-quiz" class="page">
+
+  <!-- List view -->
+  <div id="quizList" class="max-w-screen-xl mx-auto px-4 lg:px-8 py-8">
+    <div class="mb-7">
+      <h1 class="text-2xl font-bold text-gray-800">Bộ đề trắc nghiệm</h1>
+      <p class="text-gray-400 mt-1 text-sm">Luyện tập và kiểm tra kiến thức theo môn học</p>
+    </div>
+    <div class="flex gap-2 mb-6 overflow-x-auto pb-1" id="quizFilterChips"></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="quizGrid"></div>
+  </div>
+
+  <!-- Player view -->
+  <div id="quizPlayer" class="hidden max-w-2xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-sm font-semibold text-gray-700" id="qpTitle">Câu 1/10</span>
+          <span class="text-xs text-gray-400 ml-2" id="qpQuizName"></span>
+        </div>
+        <div class="flex items-center gap-1.5 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="qpTimer" class="font-mono font-semibold text-gray-700">10:00</span>
+        </div>
+      </div>
+      <div class="quiz-bar"><div id="qpBar" class="quiz-fill" style="width:10%"></div></div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-7 mb-5">
+      <p id="qpQuestion" class="text-gray-800 font-semibold text-lg mb-7 leading-relaxed"></p>
+      <div id="qpOptions" class="space-y-3"></div>
+    </div>
+
+    <div class="flex justify-between">
+      <button onclick="qPrev()" class="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:border-blue-300 hover:text-blue-500 transition-all">← Câu trước</button>
+      <button onclick="qNext()" class="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-sm font-semibold transition-colors">Câu tiếp →</button>
+    </div>
+  </div>
+
+  <!-- Result view -->
+  <div id="quizResult" class="hidden max-w-xl mx-auto px-4 py-14 text-center">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-12">
+      <div class="w-24 h-24 mx-auto mb-6 bg-blue-50 rounded-full flex items-center justify-center">
+        <svg width="44" height="44" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-800 mb-1">Hoàn thành!</h2>
+      <p class="text-gray-400 text-sm mb-8">Kết quả bài trắc nghiệm của bạn</p>
+      <div class="flex justify-center gap-10 mb-8">
+        <div><div class="text-4xl font-bold text-blue-500" id="rScore"></div><div class="text-xs text-gray-400 mt-1">Điểm số</div></div>
+        <div class="w-px bg-gray-200"></div>
+        <div><div class="text-4xl font-bold text-green-500" id="rPct"></div><div class="text-xs text-gray-400 mt-1">Tỷ lệ đúng</div></div>
+        <div class="w-px bg-gray-200"></div>
+        <div><div class="text-4xl font-bold text-gray-700" id="rTime"></div><div class="text-xs text-gray-400 mt-1">Thời gian</div></div>
+      </div>
+      <div class="flex gap-3 justify-center">
+        <button onclick="retryQuiz()" class="px-7 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold transition-colors">Làm lại</button>
+        <button onclick="nav('quiz')" class="px-7 py-3 border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-500 rounded-xl font-medium transition-all">Đề khác</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  PAGE: FAVORITES  ═══════════════════════ -->
+<div id="page-favorites" class="page">
+  <div class="max-w-screen-xl mx-auto px-4 lg:px-8 py-8">
+    <div class="mb-7">
+      <h1 class="text-2xl font-bold text-gray-800">Tài liệu yêu thích</h1>
+      <p class="text-gray-400 mt-1 text-sm">Các tài liệu bạn đã lưu lại</p>
+    </div>
+    <div id="favGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+    <div id="emptyFav" class="hidden py-24 text-center">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg width="28" height="28" fill="none" stroke="#D1D5DB" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </div>
+      <p class="text-gray-600 font-semibold">Chưa có tài liệu yêu thích</p>
+      <p class="text-gray-400 text-sm mt-1">Nhấn ♥ trên bất kỳ tài liệu nào để lưu vào đây</p>
+      <button onclick="nav('documents')" class="mt-5 text-sm text-blue-500 hover:text-blue-700 font-semibold">Khám phá tài liệu →</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  MODALS  ═══════════════════════ -->
+
+<!-- Login -->
+<div id="loginMod" class="modal-wrap" onclick="if(event.target===this)closeModal('loginMod')">
+  <div class="modal-box bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
+    <button onclick="closeModal('loginMod')" class="absolute top-4 right-4 text-gray-300 hover:text-gray-600 p-1" style="position:absolute;">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="text-center mb-7">
+      <div class="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+        <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-800">Đăng nhập</h2>
+      <p class="text-gray-400 text-sm mt-1">Chào mừng bạn trở lại HuStudy</p>
+    </div>
+    <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+        <input type="email" placeholder="example@email.com" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mật khẩu</label>
+        <input type="password" placeholder="••••••••" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="accent-blue-500"><span class="text-sm text-gray-500">Ghi nhớ</span></label>
+        <button type="button" class="text-sm text-blue-500 hover:text-blue-700 font-medium">Quên mật khẩu?</button>
+      </div>
+      <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold transition-colors">Đăng nhập</button>
+    </form>
+    <p class="mt-5 text-center text-sm text-gray-400">Chưa có tài khoản? <button onclick="closeModal('loginMod');openModal('registerMod')" class="text-blue-500 hover:text-blue-700 font-semibold">Đăng ký ngay</button></p>
+  </div>
+</div>
+
+<!-- Register -->
+<div id="registerMod" class="modal-wrap" onclick="if(event.target===this)closeModal('registerMod')">
+  <div class="modal-box bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
+    <button onclick="closeModal('registerMod')" class="absolute top-4 right-4 text-gray-300 hover:text-gray-600 p-1" style="position:absolute;">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="text-center mb-7">
+      <div class="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+        <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-800">Tạo tài khoản</h2>
+      <p class="text-gray-400 text-sm mt-1">Miễn phí, nhanh chóng, dễ dàng</p>
+    </div>
+    <form onsubmit="handleRegister(event)" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ</label>
+          <input type="text" placeholder="Nguyễn" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tên</label>
+          <input type="text" placeholder="Văn A" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+        <input type="email" placeholder="example@email.com" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mật khẩu</label>
+        <input type="password" placeholder="Tối thiểu 8 ký tự" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      </div>
+      <label class="flex items-start gap-2 cursor-pointer">
+        <input type="checkbox" class="accent-blue-500 mt-0.5">
+        <span class="text-sm text-gray-500">Tôi đồng ý với <a href="#" class="text-blue-500 hover:underline">Điều khoản</a> và <a href="#" class="text-blue-500 hover:underline">Bảo mật</a></span>
+      </label>
+      <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold transition-colors">Đăng ký miễn phí</button>
+    </form>
+    <p class="mt-5 text-center text-sm text-gray-400">Đã có tài khoản? <button onclick="closeModal('registerMod');openModal('loginMod')" class="text-blue-500 hover:text-blue-700 font-semibold">Đăng nhập</button></p>
+  </div>
+</div>
+
+<!-- Upload -->
+<div id="uploadMod" class="modal-wrap" onclick="if(event.target===this)closeModal('uploadMod')">
+  <div class="modal-box bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8">
+    <button onclick="closeModal('uploadMod')" class="absolute top-4 right-4 text-gray-300 hover:text-gray-600 p-1" style="position:absolute;">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h2 class="text-xl font-bold text-gray-800 mb-6">Tải lên tài liệu</h2>
+    <form id="uploadForm" onsubmit="handleUpload(event)" class="space-y-4">
+      <div class="dropzone p-8 text-center cursor-pointer" onclick="document.getElementById('fInput').click()">
+        <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+          <svg width="22" height="22" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <p class="text-sm text-gray-600">Kéo thả file hoặc <span class="text-blue-500 font-semibold">chọn từ máy tính</span></p>
+        <p class="text-xs text-gray-400 mt-1">PDF, DOCX, PPTX — Tối đa 50MB</p>
+        <input type="file" id="fInput" class="hidden" accept=".pdf,.docx,.pptx">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tiêu đề tài liệu *</label>
+        <input type="text" placeholder="Nhập tiêu đề..." class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Môn học *</label>
+        <select id="uploadSubjectSelect" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-200">
+          <option value="">Chọn môn học...</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả</label>
+        <textarea rows="3" placeholder="Mô tả ngắn về tài liệu..." class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"></textarea>
+      </div>
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeModal('uploadMod')" class="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-medium hover:border-gray-300">Hủy</button>
+        <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-bold transition-colors">Tải lên</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Toast -->
+<div id="toast" class="hide">
+  <div class="bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-medium flex items-center gap-2.5">
+    <svg width="15" height="15" fill="none" stroke="#4ADE80" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+    <span id="toastMsg"></span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════  FOOTER  ═══════════════════════ -->
+<footer style="background:#1B2A4A;" class="mt-16 py-14 px-4">
+  <div class="max-w-screen-xl mx-auto">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+      <div class="col-span-2 md:col-span-1">
+        <div class="flex items-center gap-2.5 mb-4">
+          <div class="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center">
+            <svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <span class="text-white font-bold text-lg">HuStudy</span>
+        </div>
+        <p class="text-white/40 text-sm leading-relaxed">Nền tảng học tập trực tuyến dành cho sinh viên Việt Nam.</p>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm">Môn học</h4>
+        <ul class="space-y-2.5 text-sm text-white/40">
+          <li><a href="#" class="hover:text-white transition-colors">Toán học</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Lập trình</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Vật lý</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Kinh tế</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm">Tính năng</h4>
+        <ul class="space-y-2.5 text-sm text-white/40">
+          <li><a href="#" class="hover:text-white transition-colors">Trắc nghiệm</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Yêu thích</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Tải lên</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Thảo luận</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm">Hỗ trợ</h4>
+        <ul class="space-y-2.5 text-sm text-white/40">
+          <li><a href="#" class="hover:text-white transition-colors">Liên hệ</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Điều khoản</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Bảo mật</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/10 pt-6 text-center">
+      <p class="text-white/30 text-sm">© 2025 HuStudy. Bản quyền thuộc về HuStudy Team.</p>
+    </div>
+  </div>
+</footer>
+
+
+<!-- ═══════════════════════  JAVASCRIPT  ═══════════════════════ -->
+<script>
+// ─── API & AUTH ──────────────────────────────────────────────────────────────
+const AUTH = { token: localStorage.getItem('hustudy_token'), user: null };
+
+async function apiFetch(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (AUTH.token) opts.headers['Authorization'] = 'Bearer ' + AUTH.token;
+  if (opts.body && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw data;
+  return data;
+}
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let SUBJECTS_CACHE = [];
+let favSet         = new Set();
+let currentPage    = 'home';
+let docFilter      = 'all';
+let docSort        = 'newest';
+let currentDoc     = null;
+
+let curQuiz = null, curQ = 0, curQuestions = [], answers = [], timer = null, tLeft = 0;
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Restore auth state
+  if (AUTH.token) {
+    try {
+      const { user } = await apiFetch('/api/auth/me');
+      AUTH.user = user;
+    } catch { AUTH.token = null; localStorage.removeItem('hustudy_token'); }
+  }
+  renderHeader();
+
+  // Load page data in parallel
+  await Promise.all([
+    loadSubjectsCache(),
+    buildHomeRecent(),
+    buildHomeFeaturedQuiz(),
+  ]);
+  buildHomeSubjects();
+  buildDocSidebar();
+  buildFilterChips();
+  buildDocsGrid();
+  buildQuizGrid();
+  buildQuizFilterChips();
+});
+
+async function loadSubjectsCache() {
+  try {
+    const { data } = await apiFetch('/api/subjects');
+    SUBJECTS_CACHE = data || [];
+  } catch { SUBJECTS_CACHE = []; }
+  // Populate upload subject select
+  const sel = document.getElementById('uploadSubjectSelect');
+  if (sel) {
+    sel.innerHTML = '<option value="">Chọn môn học...</option>' +
+      SUBJECTS_CACHE.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+}
+
+// ─── HEADER RENDER ────────────────────────────────────────────────────────────
+function renderHeader() {
+  const u = AUTH.user;
+  // desktop nav area (last child of nav)
+  const authArea = document.getElementById('headerAuthArea');
+  if (!authArea) return;
+  if (u) {
+    authArea.innerHTML = `
+      <div class="w-px h-5 bg-white/20 mx-1"></div>
+      ${u.role === 'ADMIN' ? `<a href="admin.html" class="text-white/75 hover:text-white text-sm px-3 py-2 rounded-lg hover:bg-white/10 transition-all">⚙️ Admin</a>` : ''}
+      <span class="text-white/70 text-sm px-2">${u.name.split(' ').slice(-1)[0]}</span>
+      <button onclick="logout()" class="text-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-medium transition-colors">Đăng xuất</button>`;
+  } else {
+    authArea.innerHTML = `
+      <div class="w-px h-5 bg-white/20 mx-1"></div>
+      <button onclick="openModal('loginMod')"    class="text-white/75 hover:text-white text-sm px-3 py-2 transition-colors">Đăng nhập</button>
+      <button onclick="openModal('registerMod')" class="text-sm bg-blue-500 hover:bg-blue-400 text-white px-4 py-2 rounded-xl font-semibold transition-colors">Đăng ký</button>`;
+  }
+}
+
+function logout() {
+  AUTH.token = null; AUTH.user = null;
+  localStorage.removeItem('hustudy_token');
+  favSet.clear();
+  updateFavCount();
+  renderHeader();
+  nav('home');
+  showToast('Đã đăng xuất.');
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('cur'));
+  const nb = document.getElementById('nb-' + page);
+  if (nb) nb.classList.add('cur');
+  currentPage = page;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (page === 'favorites') buildFavPage();
+  if (page === 'quiz') {
+    document.getElementById('quizList').classList.remove('hidden');
+    document.getElementById('quizPlayer').classList.add('hidden');
+    document.getElementById('quizResult').classList.add('hidden');
+  }
+}
+
+function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('hidden'); }
+
+// ─── MODALS ──────────────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const form = e.target;
+  const email    = form.querySelector('[type=email]').value;
+  const password = form.querySelector('[type=password]').value;
+  try {
+    const { token, user } = await apiFetch('/api/auth/login', {
+      method: 'POST', body: { email, password }
+    });
+    AUTH.token = token; AUTH.user = user;
+    localStorage.setItem('hustudy_token', token);
+    closeModal('loginMod');
+    renderHeader();
+    showToast(`Chào mừng trở lại, ${user.name}!`);
+  } catch (err) {
+    showToast(err.error || 'Đăng nhập thất bại.');
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const form     = e.target;
+  const inputs   = form.querySelectorAll('input[type=text], input[type=email], input[type=password]');
+  const name     = inputs[0].value.trim() + ' ' + inputs[1].value.trim();
+  const email    = inputs[2].value;
+  const password = inputs[3].value;
+  try {
+    const { token, user } = await apiFetch('/api/auth/register', {
+      method: 'POST', body: { name: name.trim(), email, password }
+    });
+    AUTH.token = token; AUTH.user = user;
+    localStorage.setItem('hustudy_token', token);
+    closeModal('registerMod');
+    renderHeader();
+    showToast(`Đăng ký thành công! Chào mừng ${user.name}!`);
+  } catch (err) {
+    showToast(err.error || 'Đăng ký thất bại.');
+  }
+}
+
+// Upload form submit
+async function handleUpload(e) {
+  e.preventDefault();
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để tải lên.'); }
+  const form     = document.getElementById('uploadForm');
+  const fileEl   = document.getElementById('fInput');
+  const titleEl  = form.querySelector('[placeholder="Nhập tiêu đề..."]');
+  const subjectEl= document.getElementById('uploadSubjectSelect');
+  const descEl   = form.querySelector('textarea');
+
+  if (!fileEl.files[0]) return showToast('Vui lòng chọn file.');
+
+  const fd = new FormData();
+  fd.append('file',       fileEl.files[0]);
+  fd.append('title',      titleEl.value);
+  fd.append('subject_id', subjectEl.value);
+  fd.append('description', descEl.value);
+
+  try {
+    await apiFetch('/api/documents', { method: 'POST', body: fd });
+    closeModal('uploadMod');
+    form.reset();
+    showToast('Tài liệu đã được gửi và đang chờ duyệt!');
+  } catch (err) {
+    showToast(err.error || 'Lỗi tải lên.');
+  }
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.remove('hide');
+  toastTimer = setTimeout(() => t.classList.add('hide'), 3000);
+}
+
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
+function doSearch(q) {
+  q = q.trim();
+  if (!q) return;
+  document.getElementById('docSearch').value = q;
+  docFilter = 'all';
+  nav('documents');
+  buildFilterChips();
+  buildDocSidebar();
+  buildDocsGrid();
+  showToast(`Kết quả cho: "${q}"`);
+}
+
+function quickSearch(subject) {
+  docFilter = subject;
+  nav('documents');
+  buildFilterChips();
+  buildDocSidebar();
+  buildDocsGrid();
+}
+
+// ─── HOME RENDERS ────────────────────────────────────────────────────────────
+function buildHomeSubjects() {
+  document.getElementById('homeSubjectGrid').innerHTML = SUBJECTS_CACHE.map(s => `
+    <div class="subject-card bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center" onclick="quickSearch('${s.name}')">
+      <div class="text-3xl mb-2">${s.icon || '📁'}</div>
+      <div class="text-xs font-semibold text-gray-700">${s.name}</div>
+      <div class="text-xs text-gray-400 mt-0.5">${s.doc_count || 0}</div>
+    </div>`).join('');
+}
+
+async function buildHomeRecent() {
+  try {
+    const { data } = await apiFetch('/api/documents?sort=newest&limit=4');
+    document.getElementById('homeRecentGrid').innerHTML = (data || []).map(d => docCard(d)).join('');
+  } catch { document.getElementById('homeRecentGrid').innerHTML = '<p class="col-span-4 text-center text-gray-400 text-sm py-8">Không có tài liệu nào.</p>'; }
+}
+
+async function buildHomeFeaturedQuiz() {
+  try {
+    const { data } = await apiFetch('/api/quizzes');
+    document.getElementById('homeFeaturedQuiz').innerHTML = (data || []).slice(0,3).map(q => quizCard(q)).join('');
+  } catch {}
+}
+
+// ─── DOCUMENTS PAGE ──────────────────────────────────────────────────────────
+function buildDocSidebar() {
+  document.getElementById('docSidebar').innerHTML =
+    `<div class="sb-item ${docFilter==='all'?'active':''} px-3 py-2 text-sm cursor-pointer flex justify-between" onclick="setDocFilter('all')">
+       <span>Tất cả môn học</span>
+     </div>` +
+    SUBJECTS_CACHE.map(s =>
+      `<div class="sb-item ${docFilter===s.name?'active':''} px-3 py-2 text-sm cursor-pointer flex justify-between text-gray-600" onclick="setDocFilter('${s.name}')">
+        <span class="flex items-center gap-1.5"><span>${s.icon || ''}</span>${s.name}</span>
+        <span class="text-xs text-gray-400">${s.doc_count || 0}</span>
+      </div>`).join('');
+}
+
+function buildFilterChips() {
+  const all = ['all', ...SUBJECTS_CACHE.map(s => s.name)];
+  document.getElementById('filterChips').innerHTML = all.map(f => {
+    const label = f === 'all' ? 'Tất cả' : f;
+    return `<button onclick="setDocFilter('${f}')" class="f-tab ${docFilter===f?'active':''} whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-500 transition-all">${label}</button>`;
+  }).join('');
+}
+
+function setDocFilter(f) {
+  docFilter = f;
+  buildDocSidebar();
+  buildFilterChips();
+  buildDocsGrid();
+}
+
+async function buildDocsGrid() {
+  const q    = (document.getElementById('docSearch')?.value || '').trim();
+  const params = new URLSearchParams({ sort: docSort, limit: 12 });
+  if (q)              params.set('q', q);
+  if (docFilter !== 'all') params.set('subject', docFilter);
+
+  document.getElementById('docsGrid').innerHTML = '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Đang tải...</p>';
+  try {
+    const { data, meta } = await apiFetch('/api/documents?' + params.toString());
+    document.getElementById('docCount').textContent = `Hiển thị ${meta?.total || (data||[]).length} tài liệu`;
+    document.getElementById('docsGrid').innerHTML = (data||[]).length
+      ? data.map(d => docCard(d)).join('')
+      : '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Không tìm thấy tài liệu nào.</p>';
+  } catch {
+    document.getElementById('docsGrid').innerHTML = '<p class="col-span-3 text-center text-red-400 text-sm py-12">Lỗi tải dữ liệu. Kiểm tra máy chủ.</p>';
+  }
+}
+
+function filterDocs() { buildDocsGrid(); }
+
+function sortDocs(v) {
+  docSort = v;
+  buildDocsGrid();
+}
+
+// ─── DOC CARD ────────────────────────────────────────────────────────────────
+const TYPE_COLORS = { PDF:['#EF4444','#FEF2F2','#FEE2E2'], DOCX:['#3B82F6','#EFF6FF','#DBEAFE'], PPTX:['#F97316','#FFF7ED','#FED7AA'] };
+
+function fileThumb(type, h='h-36') {
+  const [c, bg, border] = TYPE_COLORS[type] || ['#6B7280','#F9FAFB','#E5E7EB'];
+  return `<div style="background:${bg};border-bottom:2px solid ${border};" class="w-full ${h} flex flex-col items-center justify-center rounded-t-xl">
+    <svg width="30" height="30" fill="none" stroke="${c}" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <span style="color:${c};" class="text-xs font-black mt-2 tracking-widest">${type}</span>
+  </div>`;
+}
+
+function docCard(doc) {
+  // API fields: subject_name, subject_color, subject_bg, uploader_name, download_count, file_type, file_size
+  const subjectName = doc.subject_name || doc.subject || '';
+  const subjectBg   = doc.subject_bg   || '#F9FAFB';
+  const subjectColor= doc.subject_color|| '#6B7280';
+  const type        = doc.file_type    || doc.type || 'PDF';
+  const uploader    = doc.uploader_name|| doc.uploader || '';
+  const downloads   = doc.download_count != null ? doc.download_count : (doc.downloads || 0);
+  const size        = doc.file_size ? fmtSize(doc.file_size) : (doc.size || '');
+  const desc        = doc.description || doc.desc || '';
+  const fav         = favSet.has(doc.id) || doc.is_favorited;
+
+  return `<div class="doc-card bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" onclick="openDoc(${doc.id})">
+    ${fileThumb(type)}
+    <div class="p-4">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <span class="badge" style="background:${subjectBg};color:${subjectColor};">${subjectName}</span>
+        <button class="fav-btn flex-shrink-0 ${fav?'on':''}" onclick="event.stopPropagation();toggleFav(${doc.id},this)">
+          <svg width="16" height="16" fill="${fav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+      </div>
+      <h3 class="text-sm font-semibold text-gray-800 mb-1.5 clamp2 leading-snug">${doc.title}</h3>
+      <p class="text-xs text-gray-400 mb-3 clamp2">${desc}</p>
+      <div class="flex items-center justify-between text-xs text-gray-400">
+        <span class="flex items-center gap-1">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          ${uploader.split(' ').slice(-1)[0]}
+        </span>
+        <span class="flex items-center gap-1">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ${downloads.toLocaleString()}
+        </span>
+        <span>${size}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── DOC DETAIL ──────────────────────────────────────────────────────────────
+async function openDoc(id) {
+  nav('docdetail');
+  document.getElementById('dd-title').textContent = 'Đang tải...';
+  try {
+    const { data: d } = await apiFetch(`/api/documents/${id}`);
+    currentDoc = d;
+
+    const subjectBg    = d.subject_bg    || '#F9FAFB';
+    const subjectColor = d.subject_color || '#6B7280';
+    const subjectName  = d.subject_name  || '';
+    const type         = d.file_type     || 'PDF';
+    const downloads    = d.download_count != null ? d.download_count : 0;
+    const size         = d.file_size ? fmtSize(d.file_size) : '';
+    const date         = d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : '';
+
+    document.getElementById('dd-breadcrumb').textContent   = d.title;
+    document.getElementById('dd-title').textContent        = d.title;
+    document.getElementById('dd-desc').textContent         = d.description || '';
+    document.getElementById('dd-uploader').textContent     = d.uploader_name || '';
+    document.getElementById('dd-date').textContent         = date;
+    document.getElementById('dd-downloads').textContent    = downloads.toLocaleString() + ' lượt tải';
+    document.getElementById('dd-size').textContent         = size;
+
+    const badge = document.getElementById('dd-subjectBadge');
+    badge.textContent       = subjectName;
+    badge.style.background  = subjectBg;
+    badge.style.color       = subjectColor;
+
+    const [tc, tbg, tborder] = TYPE_COLORS[type] || ['#6B7280','#F9FAFB','#E5E7EB'];
+    const thumb = document.getElementById('dd-thumb');
+    thumb.style.background  = tbg;
+    thumb.style.borderColor = tborder;
+    thumb.querySelector('svg').setAttribute('stroke', tc);
+    thumb.querySelector('span').style.color = tc;
+    thumb.querySelector('span').textContent = type;
+
+    // Update favorite state from API
+    if (d.is_favorited) favSet.add(d.id); else favSet.delete(d.id);
+    updateDetailFavBtn();
+    updateFavCount();
+
+    // Preview section
+    buildPreview(d);
+
+    // Load comments, related docs, and related quizzes
+    await Promise.all([buildComments(d), buildRelated(d)]);
+  } catch (err) {
+    document.getElementById('dd-title').textContent = 'Không tìm thấy tài liệu.';
+  }
+}
+
+function buildPreview(d) {
+  const container = document.getElementById('dd-preview');
+  if (!container) return;
+  const filePath = `/uploads/${d.file_name}`;
+  if (d.file_type === 'PDF') {
+    container.innerHTML = `
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+        <h3 class="font-semibold text-gray-700 text-sm mb-3 flex items-center gap-2">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+          Xem trước tài liệu
+        </h3>
+        <iframe src="${filePath}" class="w-full rounded-xl border border-gray-200" height="500" title="PDF Preview"></iframe>
+      </div>`;
+  } else if (d.file_type === 'DOCX' || d.file_type === 'PPTX') {
+    if (location.hostname !== 'localhost') {
+      const url = encodeURIComponent(location.origin + filePath);
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+          <h3 class="font-semibold text-gray-700 text-sm mb-3">Xem trước tài liệu</h3>
+          <iframe src="https://docs.google.com/viewer?url=${url}&embedded=true" class="w-full rounded-xl border border-gray-200" height="500" title="Doc Preview"></iframe>
+        </div>`;
+    } else {
+      container.innerHTML = `
+        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-6 flex items-center gap-3">
+          <svg width="20" height="20" fill="none" stroke="#9CA3AF" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p class="text-sm text-gray-500">Xem trước DOCX/PPTX chỉ khả dụng khi triển khai online. <strong>Tải xuống</strong> để xem nội dung.</p>
+        </div>`;
+    }
+  } else {
+    container.innerHTML = '';
+  }
+}
+
+function updateDetailFavBtn() {
+  if (!currentDoc) return;
+  const on  = favSet.has(currentDoc.id);
+  const btn = document.getElementById('dd-favBtn');
+  if (!btn) return;
+  document.getElementById('dd-favLabel').textContent = on ? 'Đã lưu' : 'Yêu thích';
+  btn.style.color       = on ? '#EF4444' : '';
+  btn.style.borderColor = on ? '#FCA5A5' : '';
+  btn.querySelector('svg').setAttribute('fill', on ? 'currentColor' : 'none');
+  btn.querySelector('svg').style.color = on ? '#EF4444' : '';
+}
+
+async function toggleDetailFav() {
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để lưu tài liệu.'); }
+  if (!currentDoc) return;
+  try {
+    const { favorited } = await apiFetch(`/api/favorites/${currentDoc.id}`, { method: 'POST' });
+    if (favorited) favSet.add(currentDoc.id); else favSet.delete(currentDoc.id);
+    updateDetailFavBtn();
+    updateFavCount();
+    showToast(favorited ? 'Đã thêm vào yêu thích!' : 'Đã xóa khỏi yêu thích!');
+  } catch { showToast('Lỗi khi cập nhật yêu thích.'); }
+}
+
+function downloadDoc() {
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để tải xuống.'); }
+  if (!currentDoc) return;
+  const link = document.createElement('a');
+  link.href = `/api/documents/${currentDoc.id}/download?token=${AUTH.token}`;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+async function buildComments(doc) {
+  try {
+    const { data, meta } = await apiFetch(`/api/documents/${doc.id}/comments?limit=20`);
+    const comments = data || [];
+    document.getElementById('dd-commentCount').textContent = `(${meta?.total || comments.length} bình luận)`;
+    document.getElementById('commentsList').innerHTML = comments.length
+      ? comments.map(c => `
+        <div class="flex gap-3">
+          <div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm bg-blue-500">${(c.user_name||'?')[0].toUpperCase()}</div>
+          <div class="flex-1">
+            <div class="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-sm font-semibold text-gray-800">${c.user_name || 'Ẩn danh'}</span>
+                <span class="text-xs text-gray-400">${fmtRelative(c.created_at)}</span>
+              </div>
+              <p class="text-sm text-gray-600 leading-relaxed">${escHtml(c.content)}</p>
+            </div>
+            <div class="flex gap-4 mt-1.5 ml-3">
+              <button onclick="likeComment(${c.id}, this)" class="text-xs text-gray-400 hover:text-blue-500 flex items-center gap-1 transition-colors">
+                <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                <span>${c.likes || 0}</span>
+              </button>
+            </div>
+          </div>
+        </div>`).join('')
+      : '<p class="text-gray-400 text-sm text-center py-6">Chưa có bình luận nào. Hãy là người đầu tiên!</p>';
+  } catch { document.getElementById('commentsList').innerHTML = ''; }
+}
+
+async function postComment() {
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để bình luận.'); }
+  const ta  = document.getElementById('newComment');
+  const txt = ta.value.trim();
+  if (!txt) return;
+  try {
+    await apiFetch(`/api/documents/${currentDoc.id}/comments`, {
+      method: 'POST', body: { content: txt }
+    });
+    ta.value = '';
+    showToast('Đã gửi bình luận!');
+    buildComments(currentDoc);
+  } catch (err) { showToast(err.error || 'Lỗi gửi bình luận.'); }
+}
+
+async function likeComment(commentId, btn) {
+  if (!AUTH.user) return showToast('Vui lòng đăng nhập.');
+  try {
+    const { likes } = await apiFetch(`/api/documents/${currentDoc.id}/comments/${commentId}/like`, { method: 'POST' });
+    btn.querySelector('span').textContent = likes;
+  } catch {}
+}
+
+async function buildRelated(doc) {
+  try {
+    const { data } = await apiFetch(`/api/documents?subject=${encodeURIComponent(doc.subject_name||'')}&limit=4`);
+    const related = (data||[]).filter(d => d.id !== doc.id).slice(0, 4);
+    document.getElementById('relatedDocs').innerHTML = related.length
+      ? related.map(d => `
+        <div class="flex gap-3 cursor-pointer group" onclick="openDoc(${d.id})">
+          <div class="w-11 h-14 rounded-xl flex-shrink-0 flex flex-col items-center justify-center border" style="background:${TYPE_COLORS[d.file_type]?.[1]||'#F9FAFB'};border-color:${TYPE_COLORS[d.file_type]?.[2]||'#E5E7EB'};">
+            <svg width="14" height="14" fill="none" stroke="${TYPE_COLORS[d.file_type]?.[0]||'#6B7280'}" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            <span class="text-[9px] font-black mt-1" style="color:${TYPE_COLORS[d.file_type]?.[0]||'#6B7280'}">${d.file_type}</span>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-700 group-hover:text-blue-500 transition-colors clamp2 leading-snug">${d.title}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${(d.download_count||0).toLocaleString()} lượt tải</p>
+          </div>
+        </div>`).join('')
+      : '<p class="text-gray-400 text-sm">Không có tài liệu liên quan.</p>';
+  } catch {}
+}
+
+// ─── FAVORITES ───────────────────────────────────────────────────────────────
+async function toggleFav(id, btn) {
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để lưu yêu thích.'); }
+  try {
+    const { favorited } = await apiFetch(`/api/favorites/${id}`, { method: 'POST' });
+    if (favorited) favSet.add(id); else favSet.delete(id);
+    btn.classList.toggle('on', favorited);
+    btn.querySelector('svg').setAttribute('fill', favorited ? 'currentColor' : 'none');
+    showToast(favorited ? 'Đã thêm vào yêu thích!' : 'Đã xóa khỏi yêu thích!');
+    updateFavCount();
+  } catch { showToast('Lỗi cập nhật yêu thích.'); }
+}
+
+function updateFavCount() {
+  const cnt = favSet.size;
+  const el  = document.getElementById('favCount');
+  if (!el) return;
+  el.textContent = cnt;
+  el.classList.toggle('hidden', cnt === 0);
+}
+
+async function buildFavPage() {
+  if (!AUTH.user) {
+    document.getElementById('favGrid').innerHTML = '';
+    document.getElementById('emptyFav').classList.remove('hidden');
+    return;
+  }
+  try {
+    const { data } = await apiFetch('/api/favorites');
+    const favDocs  = data || [];
+    const grid     = document.getElementById('favGrid');
+    const empty    = document.getElementById('emptyFav');
+    if (!favDocs.length) { grid.innerHTML = ''; empty.classList.remove('hidden'); }
+    else {
+      empty.classList.add('hidden');
+      // Mark all as favorited
+      favDocs.forEach(d => favSet.add(d.id));
+      grid.innerHTML = favDocs.map(d => docCard(d)).join('');
+      updateFavCount();
+    }
+  } catch { document.getElementById('emptyFav').classList.remove('hidden'); }
+}
+
+// ─── QUIZ ────────────────────────────────────────────────────────────────────
+async function buildQuizGrid() {
+  const grid = document.getElementById('quizGrid');
+  grid.innerHTML = '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Đang tải...</p>';
+  try {
+    const { data } = await apiFetch('/api/quizzes');
+    grid.innerHTML = (data && data.length)
+      ? data.map(q => quizCard(q)).join('')
+      : '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Không tìm thấy bộ đề nào.</p>';
+  } catch { document.getElementById('quizGrid').innerHTML = '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Lỗi tải bộ đề.</p>'; }
+}
+
+function buildQuizFilterChips() {
+  const subjects = ['all', ...SUBJECTS_CACHE.map(s => s.name)];
+  document.getElementById('quizFilterChips').innerHTML = subjects.slice(0, 7).map(f => {
+    const label = f === 'all' ? 'Tất cả' : f;
+    return `<button class="f-tab whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-500 transition-all">${label}</button>`;
+  }).join('');
+}
+
+const DIFF_STYLE = {
+  'Dễ':        { bg:'#ECFDF5', color:'#10B981' },
+  'Trung bình':{ bg:'#FFF7ED', color:'#F97316' },
+  'Khó':       { bg:'#FEF2F2', color:'#EF4444' },
+};
+
+function quizCard(q) {
+  const subjectBg    = q.subject_bg    || '#F9FAFB';
+  const subjectColor = q.subject_color || '#6B7280';
+  const subjectName  = q.subject_name  || q.subject || '';
+  const ds = DIFF_STYLE[q.difficulty] || DIFF_STYLE['Trung bình'];
+  const questionCount = q.question_count || q.questions || 0;
+  const timeMinutes   = q.time_minutes   || q.time     || 10;
+  const attemptCount  = q.attempt_count  || q.attempts || 0;
+
+  return `<div class="quiz-card bg-white rounded-xl border border-gray-100 shadow-sm p-5" onclick="startQuiz(${q.id})">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="badge" style="background:${subjectBg};color:${subjectColor};">${subjectName}</span>
+      <span class="badge" style="background:${ds.bg};color:${ds.color};">${q.difficulty}</span>
+    </div>
+    <h3 class="font-semibold text-gray-800 mb-3 leading-snug">${q.title}</h3>
+    <div class="flex items-center gap-5 text-xs text-gray-400 mb-4">
+      <span class="flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>${questionCount} câu</span>
+      <span class="flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${timeMinutes} phút</span>
+      <span class="flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>${attemptCount.toLocaleString()}</span>
+    </div>
+    <button class="w-full py-2.5 rounded-xl text-sm font-semibold border-2 border-blue-100 text-blue-500 bg-blue-50 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all">Bắt đầu làm bài</button>
+  </div>`;
+}
+
+async function startQuiz(id) {
+  if (!AUTH.user) { openModal('loginMod'); return showToast('Vui lòng đăng nhập để làm bài trắc nghiệm.'); }
+
+  document.getElementById('quizList').classList.add('hidden');
+  document.getElementById('quizPlayer').classList.remove('hidden');
+  document.getElementById('quizResult').classList.add('hidden');
+  document.getElementById('qpQuestion').textContent = 'Đang tải câu hỏi...';
+  document.getElementById('qpOptions').innerHTML = '';
+
+  try {
+    const { data } = await apiFetch(`/api/quizzes/${id}`);
+    curQuiz      = data;
+    curQuestions = data.questions || [];
+    curQ         = 0;
+    answers      = new Array(curQuestions.length).fill(null);
+    tLeft        = (data.time_minutes || 10) * 60;
+    document.getElementById('qpQuizName').textContent = data.title || '';
+    renderQuestion();
+    startTimer();
+  } catch (err) {
+    showToast(err.error || 'Lỗi tải bộ đề.');
+    nav('quiz');
+  }
+}
+
+function renderQuestion() {
+  const q = curQuestions[curQ];
+  const n = curQuestions.length;
+  if (!q) return;
+  document.getElementById('qpTitle').textContent    = `Câu ${curQ + 1}/${n}`;
+  document.getElementById('qpBar').style.width      = `${((curQ+1)/n)*100}%`;
+  document.getElementById('qpQuestion').textContent = q.text || q.q || '';
+  const opts = q.options || q.opts || [];
+  document.getElementById('qpOptions').innerHTML = opts.map((o,i) => `
+    <div class="q-opt ${answers[curQ]===i?'chosen':''}" onclick="selectAns(${i})">
+      <span class="w-7 h-7 flex-shrink-0 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">${String.fromCharCode(65+i)}</span>
+      <span class="text-sm text-gray-700">${escHtml(String(o))}</span>
+    </div>`).join('');
+}
+
+function selectAns(i) {
+  answers[curQ] = i;
+  renderQuestion();
+}
+
+function qNext() {
+  if (curQ < curQuestions.length - 1) { curQ++; renderQuestion(); }
+  else finishQuiz();
+}
+
+function qPrev() {
+  if (curQ > 0) { curQ--; renderQuestion(); }
+}
+
+async function finishQuiz() {
+  clearInterval(timer);
+  const elapsed = (curQuiz?.time_minutes||10)*60 - tLeft;
+  const mm = Math.floor(elapsed/60).toString().padStart(2,'0');
+  const ss = (elapsed%60).toString().padStart(2,'0');
+
+  document.getElementById('quizPlayer').classList.add('hidden');
+  document.getElementById('quizResult').classList.remove('hidden');
+
+  try {
+    const { score, total, percentage, correct_answers } = await apiFetch(`/api/quizzes/${curQuiz.id}/submit`, {
+      method: 'POST', body: { answers, time_elapsed: elapsed }
+    });
+    document.getElementById('rScore').textContent = `${score}/${total}`;
+    document.getElementById('rPct').textContent   = `${percentage}%`;
+    document.getElementById('rTime').textContent  = `${mm}:${ss}`;
+
+    // Highlight correct/wrong answers
+    if (correct_answers) {
+      curQ = 0;
+      const detail = document.getElementById('quizResult').querySelector('.result-detail');
+      if (!detail) {
+        const div = document.createElement('div');
+        div.className = 'result-detail mt-4 text-sm space-y-1 text-left max-h-48 overflow-y-auto';
+        div.innerHTML = correct_answers.map((a, i) =>
+          `<div class="flex items-center gap-2 ${a.is_correct?'text-green-600':'text-red-500'}">
+            <span>${a.is_correct?'✓':'✗'}</span>
+            <span>Câu ${i+1}: ${a.is_correct ? 'Đúng' : `Sai (đáp án đúng: ${String.fromCharCode(65+a.correct_option)})`}</span>
+          </div>`
+        ).join('');
+        document.getElementById('quizResult').querySelector('.bg-white').querySelector('p.text-gray-400').after(div);
+      }
+    }
+  } catch {
+    // Fallback: compute locally
+    const score = answers.filter((a, i) => a === (curQuestions[i]?.answer ?? -1)).length;
+    const total = curQuestions.length;
+    document.getElementById('rScore').textContent = `${score}/${total}`;
+    document.getElementById('rPct').textContent   = `${Math.round(score/total*100)}%`;
+    document.getElementById('rTime').textContent  = `${mm}:${ss}`;
+  }
+}
+
+function retryQuiz() { if (curQuiz) startQuiz(curQuiz.id); }
+
+function startTimer() {
+  clearInterval(timer);
+  timer = setInterval(() => {
+    tLeft--;
+    const m = Math.floor(tLeft/60).toString().padStart(2,'0');
+    const s = (tLeft%60).toString().padStart(2,'0');
+    document.getElementById('qpTimer').textContent = `${m}:${s}`;
+    if (tLeft <= 0) { clearInterval(timer); finishQuiz(); }
+  }, 1000);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function fmtRelative(dt) {
+  if (!dt) return '';
+  const diff = Date.now() - new Date(dt).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)   return 'Vừa xong';
+  if (mins < 60)  return `${mins} phút trước`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)   return `${hrs} giờ trước`;
+  return Math.floor(hrs / 24) + ' ngày trước';
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

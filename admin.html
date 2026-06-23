@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HuStudy — Quản trị viên</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Be Vietnam Pro', sans-serif; background: #F1F5F9; }
+    .section { display: none; }
+    .section.active { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .nav-item { transition: all .15s; border-left: 3px solid transparent; }
+    .nav-item:hover { background: rgba(255,255,255,.08); }
+    .nav-item.active { background: rgba(255,255,255,.12); border-left-color: #60A5FA; color: #fff; }
+    .badge-count { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; border-radius:9999px; font-size:.7rem; font-weight:700; padding:0 5px; }
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-thumb { background:#CBD5E1; border-radius:99px; }
+    .modal-wrap { display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:200; backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+    .modal-wrap.open { display:flex; }
+    #toast { position:fixed; bottom:24px; right:24px; z-index:999; transition:opacity .3s; }
+    #toast.hide { opacity:0; pointer-events:none; }
+    .status-PENDING  { background:#FEF3C7; color:#92400E; }
+    .status-APPROVED { background:#D1FAE5; color:#065F46; }
+    .status-REJECTED { background:#FEE2E2; color:#991B1B; }
+    .tab-btn.active  { background:#3B82F6; color:#fff; border-color:transparent; }
+  </style>
+</head>
+<body class="min-h-screen flex">
+
+<!-- ═══════  LOGIN SCREEN  ═══════ -->
+<div id="loginScreen" style="display:flex; position:fixed; inset:0; background:#F1F5F9; align-items:center; justify-content:center; z-index:500;">
+  <div class="bg-white rounded-2xl shadow-lg w-full max-w-sm mx-4 p-8">
+    <div class="flex items-center gap-3 mb-7">
+      <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+        <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      </div>
+      <div>
+        <div class="font-bold text-gray-800 text-base">HuStudy Admin</div>
+        <div class="text-gray-400 text-xs">Đăng nhập quản trị viên</div>
+      </div>
+    </div>
+    <form onsubmit="submitAdminLogin(event)" class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
+        <input id="loginEmail" type="email" required autocomplete="username"
+          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="admin@hustudy.vn">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Mật khẩu</label>
+        <input id="loginPassword" type="password" required autocomplete="current-password"
+          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          placeholder="••••••••">
+      </div>
+      <p id="loginError" class="text-red-500 text-sm min-h-[1.25rem]"></p>
+      <button type="submit" id="loginBtn"
+        class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl font-bold text-sm transition-colors">
+        Đăng nhập
+      </button>
+    </form>
+    <p class="mt-5 text-center text-xs text-gray-400">
+      <a href="hustudy.html" class="text-blue-400 hover:text-blue-600">← Về trang người dùng</a>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════  ADMIN SHELL  ═══════ -->
+<div id="adminShell" style="display:none" class="flex w-full min-h-screen">
+
+<!-- ═══════  SIDEBAR  ═══════ -->
+<aside style="background:#1B2A4A; width:240px;" class="flex-shrink-0 min-h-screen flex flex-col">
+  <!-- Logo -->
+  <div class="flex items-center gap-2.5 px-5 py-5 border-b border-white/10">
+    <div class="w-9 h-9 bg-blue-500 rounded-xl flex items-center justify-center">
+      <svg width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </div>
+    <div>
+      <div class="text-white font-bold text-sm">HuStudy</div>
+      <div class="text-white/40 text-xs">Quản trị viên</div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 py-4 px-2 space-y-0.5">
+    <button onclick="showSection('dashboard')" id="nav-dashboard" class="nav-item active w-full text-left text-white/70 text-sm px-3 py-2.5 rounded-xl flex items-center gap-3">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button onclick="showSection('pending')" id="nav-pending" class="nav-item w-full text-left text-white/70 text-sm px-3 py-2.5 rounded-xl flex items-center justify-between gap-3">
+      <span class="flex items-center gap-3">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Chờ duyệt
+      </span>
+      <span id="pendingBadge" class="badge-count bg-yellow-400 text-yellow-900 hidden">0</span>
+    </button>
+    <button onclick="showSection('alldocs')" id="nav-alldocs" class="nav-item w-full text-left text-white/70 text-sm px-3 py-2.5 rounded-xl flex items-center gap-3">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Tất cả tài liệu
+    </button>
+    <button onclick="showSection('users')" id="nav-users" class="nav-item w-full text-left text-white/70 text-sm px-3 py-2.5 rounded-xl flex items-center gap-3">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Người dùng
+    </button>
+    <button onclick="showSection('quizzes')" id="nav-quizzes" class="nav-item w-full text-left text-white/70 text-sm px-3 py-2.5 rounded-xl flex items-center gap-3">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      Trắc nghiệm
+    </button>
+  </nav>
+
+  <!-- Admin info -->
+  <div class="px-4 py-4 border-t border-white/10">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm" id="adminAvatar">A</div>
+      <div class="min-w-0">
+        <div class="text-white text-sm font-medium truncate" id="adminName">Admin</div>
+        <div class="text-white/40 text-xs">Quản trị viên</div>
+      </div>
+      <button onclick="logout()" title="Đăng xuất" class="ml-auto text-white/30 hover:text-white/70 transition-colors">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════  MAIN  ═══════ -->
+<main class="flex-1 min-w-0 overflow-y-auto">
+  <!-- Top bar -->
+  <div class="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+    <h1 id="pageTitle" class="text-lg font-bold text-gray-800">Dashboard</h1>
+    <div class="flex items-center gap-3">
+      <a href="hustudy.html" class="text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Về trang chủ
+      </a>
+    </div>
+  </div>
+
+  <div class="px-8 py-7">
+
+    <!-- ── DASHBOARD ────────────────────────────────────────────── -->
+    <div id="sec-dashboard" class="section active">
+      <!-- Stat cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#3B82F6" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-students">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Sinh viên</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#F59E0B" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-pending">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Chờ duyệt</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#10B981" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-approved">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Đã duyệt</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#8B5CF6" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-downloads">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Tổng lượt tải</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#EF4444" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-rejected">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Từ chối</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#06B6D4" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-quizzes">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Bộ trắc nghiệm</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center mb-3">
+            <svg width="18" height="18" fill="none" stroke="#F97316" stroke-width="2" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/></svg>
+          </div>
+          <div class="text-2xl font-bold text-gray-800" id="st-attempts">—</div>
+          <div class="text-sm text-gray-400 mt-0.5">Lượt làm trắc nghiệm</div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 class="font-semibold text-gray-800 mb-4">Tài liệu chờ duyệt gần đây</h3>
+          <div id="dashPendingList" class="space-y-2 text-sm text-gray-500">Đang tải...</div>
+          <button onclick="showSection('pending')" class="mt-4 text-sm text-blue-500 hover:text-blue-700 font-medium">Xem tất cả →</button>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 class="font-semibold text-gray-800 mb-4">Người dùng mới đăng ký</h3>
+          <div id="dashUserList" class="space-y-2 text-sm text-gray-500">Đang tải...</div>
+          <button onclick="showSection('users')" class="mt-4 text-sm text-blue-500 hover:text-blue-700 font-medium">Xem tất cả →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PENDING DOCUMENTS ─────────────────────────────────────── -->
+    <div id="sec-pending" class="section">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">Tài liệu chờ duyệt</h2>
+          <button onclick="loadPending()" class="text-sm text-blue-500 hover:text-blue-700">Làm mới</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3 text-left">Tên tài liệu</th>
+              <th class="px-4 py-3 text-left">Môn học</th>
+              <th class="px-4 py-3 text-left">Loại</th>
+              <th class="px-4 py-3 text-left">Người tải</th>
+              <th class="px-4 py-3 text-left">Ngày</th>
+              <th class="px-4 py-3 text-left">Kích thước</th>
+              <th class="px-5 py-3 text-center">Hành động</th>
+            </tr></thead>
+            <tbody id="pendingTable" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+        <div id="pendingEmpty" class="hidden py-16 text-center text-gray-400 text-sm">Không có tài liệu chờ duyệt.</div>
+      </div>
+    </div>
+
+    <!-- ── ALL DOCUMENTS ─────────────────────────────────────────── -->
+    <div id="sec-alldocs" class="section">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+          <h2 class="font-semibold text-gray-800">Tất cả tài liệu</h2>
+          <div class="flex gap-2">
+            <button onclick="loadAllDocs('all')"      class="tab-btn active px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 transition-all" data-v="all">Tất cả</button>
+            <button onclick="loadAllDocs('APPROVED')" class="tab-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 transition-all" data-v="APPROVED">Đã duyệt</button>
+            <button onclick="loadAllDocs('PENDING')"  class="tab-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 transition-all" data-v="PENDING">Chờ duyệt</button>
+            <button onclick="loadAllDocs('REJECTED')" class="tab-btn px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 transition-all" data-v="REJECTED">Từ chối</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3 text-left">Tên tài liệu</th>
+              <th class="px-4 py-3 text-left">Môn học</th>
+              <th class="px-4 py-3 text-left">Loại</th>
+              <th class="px-4 py-3 text-left">Người tải</th>
+              <th class="px-4 py-3 text-left">Trạng thái</th>
+              <th class="px-4 py-3 text-right">Lượt tải</th>
+              <th class="px-5 py-3 text-center">Hành động</th>
+            </tr></thead>
+            <tbody id="allDocsTable" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── USERS ─────────────────────────────────────────────────── -->
+    <div id="sec-users" class="section">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">Quản lý người dùng</h2>
+          <button onclick="loadUsers()" class="text-sm text-blue-500 hover:text-blue-700">Làm mới</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3 text-left">Họ tên</th>
+              <th class="px-4 py-3 text-left">Email</th>
+              <th class="px-4 py-3 text-left">Trạng thái</th>
+              <th class="px-4 py-3 text-right">Tài liệu</th>
+              <th class="px-4 py-3 text-left">Ngày đăng ký</th>
+              <th class="px-5 py-3 text-center">Hành động</th>
+            </tr></thead>
+            <tbody id="usersTable" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── QUIZZES ────────────────────────────────────────────────── -->
+    <div id="sec-quizzes" class="section">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+          <h2 class="font-semibold text-gray-800">Quản lý trắc nghiệm</h2>
+          <div class="flex items-center gap-2">
+            <button onclick="openImportModal()" class="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Nhập từ cauhoi.org
+            </button>
+            <button onclick="openQuizModal(null)" class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Thêm bộ đề
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-5 py-3 text-left">Tiêu đề</th>
+              <th class="px-4 py-3 text-left">Môn học</th>
+              <th class="px-4 py-3 text-left">Độ khó</th>
+              <th class="px-4 py-3 text-right">Số câu</th>
+              <th class="px-4 py-3 text-right">Lượt làm</th>
+              <th class="px-5 py-3 text-center">Hành động</th>
+            </tr></thead>
+            <tbody id="quizzesTable" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /px-8 -->
+</main>
+
+</div><!-- /adminShell -->
+
+<!-- ═══════  QUIZ MODAL  ═══════ -->
+<div id="quizModal" class="modal-wrap" onclick="if(event.target===this)closeQuizModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-screen overflow-y-auto relative">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
+      <h2 class="text-lg font-bold text-gray-800" id="quizModalTitle">Thêm bộ đề trắc nghiệm</h2>
+      <button onclick="closeQuizModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="qmId">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Tiêu đề *</label>
+          <input id="qmTitle" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="Tên bộ đề...">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Môn học *</label>
+          <select id="qmSubject" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Độ khó</label>
+          <select id="qmDifficulty" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200">
+            <option>Dễ</option><option selected>Trung bình</option><option>Khó</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Thời gian (phút)</label>
+          <input id="qmTime" type="number" value="10" min="1" max="120" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+        </div>
+      </div>
+
+      <!-- Questions builder -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-gray-800 text-sm">Câu hỏi</h3>
+          <button onclick="addQuestion()" class="flex items-center gap-1.5 text-sm text-blue-500 hover:text-blue-700 font-medium">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm câu hỏi
+          </button>
+        </div>
+        <div id="questionsBuilder" class="space-y-4"></div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeQuizModal()" class="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-medium hover:border-gray-300">Hủy</button>
+        <button onclick="saveQuiz()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-xl text-sm font-bold transition-colors">Lưu bộ đề</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════  IMPORT MODAL  ═══════ -->
+<div id="importModal" class="modal-wrap" onclick="if(event.target===this)closeImportModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative">
+    <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold text-gray-800">Nhập quiz từ cauhoi.org</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Tự động lấy câu hỏi theo môn học</p>
+      </div>
+      <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600 p-1">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Slug môn học trên cauhoi.org *</label>
+        <input id="imSlug" type="text" placeholder="vd: java, python, c-plus-plus, mang-may-tinh"
+          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200">
+        <p class="text-xs text-gray-400 mt-1">Phần trong URL: cauhoi.org/dai-hoc/bai-tap-...-mon-<strong>java</strong>/</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Môn học HuStudy *</label>
+          <select id="imSubject" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Độ khó</label>
+          <select id="imDifficulty" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <option>Dễ</option><option selected>Trung bình</option><option>Khó</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Thời gian / đề (phút)</label>
+          <input id="imTime" type="number" value="45" min="5" max="120"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số đề tối đa</label>
+          <input id="imMaxSets" type="number" value="10" min="1" max="50"
+            class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200">
+        </div>
+      </div>
+
+      <!-- Result area -->
+      <div id="importResult" class="hidden rounded-xl p-4 text-sm"></div>
+
+      <div class="flex gap-3 pt-1">
+        <button onclick="closeImportModal()" class="flex-1 border border-gray-200 text-gray-600 py-3 rounded-xl text-sm font-medium hover:border-gray-300">Hủy</button>
+        <button id="importBtn" onclick="runImport()" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Bắt đầu nhập
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hide">
+  <div class="bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm font-medium flex items-center gap-2.5">
+    <svg width="15" height="15" fill="none" stroke="#4ADE80" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+    <span id="toastMsg"></span>
+  </div>
+</div>
+
+<script>
+const API = '';
+let TOKEN = localStorage.getItem('hustudy_token');
+let SUBJECTS_CACHE = [];
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+(async () => {
+  if (!TOKEN) return showLoginScreen();
+  try {
+    const res = await apiFetch('/api/auth/me');
+    if (res.user.role !== 'ADMIN') return showLoginScreen('Tài khoản này không có quyền quản trị.');
+    initAdmin(res.user);
+  } catch { showLoginScreen(); }
+})();
+
+function showLoginScreen(msg = '') {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('adminShell').style.display  = 'none';
+  if (msg) document.getElementById('loginError').textContent = msg;
+}
+
+function initAdmin(user) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminShell').style.display  = 'flex';
+  document.getElementById('adminName').textContent   = user.name;
+  document.getElementById('adminAvatar').textContent = user.name[0].toUpperCase();
+  loadSubjectsCache();
+  loadDashboard();
+}
+
+async function submitAdminLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  document.getElementById('loginError').textContent = '';
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Đang đăng nhập...';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw data;
+    if (data.user.role !== 'ADMIN') {
+      document.getElementById('loginError').textContent = 'Tài khoản này không có quyền quản trị.';
+      return;
+    }
+    TOKEN = data.token;
+    localStorage.setItem('hustudy_token', TOKEN);
+    initAdmin(data.user);
+  } catch (err) {
+    document.getElementById('loginError').textContent = err.error || 'Email hoặc mật khẩu không đúng.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Đăng nhập';
+  }
+}
+
+async function apiFetch(path, opts = {}) {
+  if (TOKEN) (opts.headers = opts.headers || {})['Authorization'] = 'Bearer ' + TOKEN;
+  opts.headers = opts.headers || {};
+  if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  const r = await fetch(API + path, opts);
+  const data = await r.json();
+  if (!r.ok) throw data;
+  return data;
+}
+
+function showToast(msg) {
+  clearTimeout(window._toastTimer);
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toast').classList.remove('hide');
+  window._toastTimer = setTimeout(() => document.getElementById('toast').classList.add('hide'), 3000);
+}
+
+function logout() {
+  localStorage.removeItem('hustudy_token');
+  window.location.href = 'hustudy.html';
+}
+
+// ── Section switching ──────────────────────────────────────────────────────
+const TITLES = {
+  dashboard: 'Dashboard', pending: 'Tài liệu chờ duyệt',
+  alldocs: 'Tất cả tài liệu', users: 'Người dùng', quizzes: 'Trắc nghiệm'
+};
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('pageTitle').textContent = TITLES[name];
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'pending')   loadPending();
+  if (name === 'alldocs')   loadAllDocs('all');
+  if (name === 'users')     loadUsers();
+  if (name === 'quizzes')   loadAdminQuizzes();
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const { data: pending } = await apiFetch('/api/admin/documents?status=PENDING&limit=5');
+    const { data: users }   = await apiFetch('/api/admin/users?limit=5');
+    const stats             = await apiFetch('/api/admin/stats');
+
+    document.getElementById('st-students').textContent  = stats.total_students.toLocaleString();
+    document.getElementById('st-pending').textContent   = stats.pending_docs.toLocaleString();
+    document.getElementById('st-approved').textContent  = stats.approved_docs.toLocaleString();
+    document.getElementById('st-rejected').textContent  = stats.rejected_docs.toLocaleString();
+    document.getElementById('st-downloads').textContent = stats.total_downloads.toLocaleString();
+    document.getElementById('st-quizzes').textContent   = stats.total_quizzes.toLocaleString();
+    document.getElementById('st-attempts').textContent  = stats.total_attempts.toLocaleString();
+
+    const badge = document.getElementById('pendingBadge');
+    if (stats.pending_docs > 0) {
+      badge.textContent = stats.pending_docs;
+      badge.classList.remove('hidden');
+    }
+
+    document.getElementById('dashPendingList').innerHTML = pending.length
+      ? pending.map(d => `<div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+          <span class="text-gray-700 font-medium truncate max-w-xs">${d.title}</span>
+          <div class="flex gap-2 flex-shrink-0 ml-3">
+            <button onclick="quickApprove(${d.id})" class="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-2.5 py-1 rounded-lg font-semibold transition-colors">Duyệt</button>
+            <button onclick="quickReject(${d.id})"  class="text-xs bg-red-50   text-red-500   hover:bg-red-100   px-2.5 py-1 rounded-lg font-semibold transition-colors">Từ chối</button>
+          </div>
+        </div>`).join('')
+      : '<p class="text-gray-400 text-center py-4">Không có tài liệu chờ duyệt.</p>';
+
+    document.getElementById('dashUserList').innerHTML = users.length
+      ? users.map(u => `<div class="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
+          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">${u.name[0]}</div>
+          <div class="min-w-0">
+            <div class="text-gray-700 font-medium text-sm truncate">${u.name}</div>
+            <div class="text-gray-400 text-xs truncate">${u.email}</div>
+          </div>
+          <div class="ml-auto text-xs text-gray-400">${fmtDate(u.created_at)}</div>
+        </div>`).join('')
+      : '<p class="text-gray-400 text-center py-4">Chưa có người dùng.</p>';
+  } catch (e) { console.error(e); }
+}
+
+// ── Pending documents ─────────────────────────────────────────────────────
+async function loadPending() {
+  try {
+    const { data } = await apiFetch('/api/admin/documents?status=PENDING&limit=50');
+    const tbody = document.getElementById('pendingTable');
+    const empty = document.getElementById('pendingEmpty');
+    if (!data.length) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    tbody.innerHTML = data.map(d => `
+      <tr id="prow-${d.id}" class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3 font-medium text-gray-800 max-w-xs">
+          <div class="truncate">${d.title}</div>
+        </td>
+        <td class="px-4 py-3 text-gray-500">${d.subject_name}</td>
+        <td class="px-4 py-3"><span class="badge-count bg-gray-100 text-gray-600 text-xs px-2">${d.file_type}</span></td>
+        <td class="px-4 py-3 text-gray-500 text-xs">${d.uploader_name}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs">${fmtDate(d.created_at)}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs">${fmtSize(d.file_size)}</td>
+        <td class="px-5 py-3 text-center">
+          <div class="flex gap-2 justify-center">
+            <button onclick="approveDoc(${d.id})" class="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-3 py-1.5 rounded-lg font-semibold transition-colors">✓ Duyệt</button>
+            <button onclick="rejectDoc(${d.id})"  class="text-xs bg-red-50   text-red-500   hover:bg-red-100   px-3 py-1.5 rounded-lg font-semibold transition-colors">✕ Từ chối</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  } catch (e) { showToast('Lỗi tải danh sách.'); }
+}
+
+async function approveDoc(id) {
+  try {
+    await apiFetch(`/api/admin/documents/${id}/approve`, { method: 'PATCH' });
+    document.getElementById(`prow-${id}`)?.remove();
+    showToast('Đã duyệt tài liệu.');
+    loadDashboard();
+  } catch { showToast('Lỗi khi duyệt tài liệu.'); }
+}
+
+async function rejectDoc(id) {
+  try {
+    await apiFetch(`/api/admin/documents/${id}/reject`, { method: 'PATCH' });
+    document.getElementById(`prow-${id}`)?.remove();
+    showToast('Đã từ chối tài liệu.');
+    loadDashboard();
+  } catch { showToast('Lỗi khi từ chối.'); }
+}
+
+async function quickApprove(id) { await approveDoc(id); }
+async function quickReject(id)  { await rejectDoc(id);  }
+
+// ── All documents ─────────────────────────────────────────────────────────
+async function loadAllDocs(status) {
+  // Update tab UI
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.v === status);
+  });
+  try {
+    const url = status === 'all' ? '/api/admin/documents?limit=50' : `/api/admin/documents?status=${status}&limit=50`;
+    const { data } = await apiFetch(url);
+    document.getElementById('allDocsTable').innerHTML = data.map(d => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3 font-medium text-gray-800 max-w-xs"><div class="truncate">${d.title}</div></td>
+        <td class="px-4 py-3 text-gray-500 text-sm">${d.subject_name}</td>
+        <td class="px-4 py-3"><span class="badge-count bg-gray-100 text-gray-600 text-xs px-2">${d.file_type}</span></td>
+        <td class="px-4 py-3 text-gray-500 text-xs">${d.uploader_name}</td>
+        <td class="px-4 py-3"><span class="badge-count status-${d.status} text-xs px-2">${statusLabel(d.status)}</span></td>
+        <td class="px-4 py-3 text-gray-500 text-right text-sm">${(d.download_count||0).toLocaleString()}</td>
+        <td class="px-5 py-3 text-center">
+          <div class="flex gap-2 justify-center">
+            ${d.status === 'PENDING' ? `<button onclick="approveDoc(${d.id})" class="text-xs bg-green-50 text-green-600 hover:bg-green-100 px-2.5 py-1 rounded-lg font-semibold">Duyệt</button>` : ''}
+            <button onclick="deleteDoc(${d.id})" class="text-xs bg-red-50 text-red-500 hover:bg-red-100 px-2.5 py-1 rounded-lg font-semibold transition-colors">Xóa</button>
+          </div>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="7" class="px-5 py-10 text-center text-gray-400">Không có tài liệu.</td></tr>';
+  } catch { showToast('Lỗi tải danh sách tài liệu.'); }
+}
+
+async function deleteDoc(id) {
+  if (!confirm('Xóa tài liệu này? Hành động không thể hoàn tác.')) return;
+  try {
+    await apiFetch(`/api/admin/documents/${id}`, { method: 'DELETE' });
+    showToast('Đã xóa tài liệu.');
+    loadAllDocs('all');
+  } catch { showToast('Lỗi khi xóa.'); }
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const { data } = await apiFetch('/api/admin/users?limit=50');
+    document.getElementById('usersTable').innerHTML = data.map(u => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">${u.name[0]}</div>
+            <span class="font-medium text-gray-800 text-sm">${u.name}</span>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-sm">${u.email}</td>
+        <td class="px-4 py-3">
+          <span class="badge-count ${u.banned ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'} text-xs px-2">
+            ${u.banned ? 'Bị khóa' : 'Hoạt động'}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-sm text-right">${u.doc_count}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs">${fmtDate(u.created_at)}</td>
+        <td class="px-5 py-3 text-center">
+          <div class="flex gap-2 justify-center">
+            <button onclick="${u.banned ? `unbanUser(${u.id})` : `banUser(${u.id})`}"
+              class="text-xs ${u.banned ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-red-50 text-red-500 hover:bg-red-100'} px-2.5 py-1 rounded-lg font-semibold transition-colors">
+              ${u.banned ? 'Mở khóa' : 'Khóa'}
+            </button>
+            <button onclick="promoteUser(${u.id})" class="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-1 rounded-lg font-semibold transition-colors">Admin</button>
+          </div>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" class="px-5 py-10 text-center text-gray-400">Chưa có người dùng.</td></tr>';
+  } catch { showToast('Lỗi tải danh sách người dùng.'); }
+}
+
+async function banUser(id) {
+  try { await apiFetch(`/api/admin/users/${id}/ban`, { method: 'PATCH' }); showToast('Đã khóa tài khoản.'); loadUsers(); }
+  catch { showToast('Lỗi khi khóa tài khoản.'); }
+}
+async function unbanUser(id) {
+  try { await apiFetch(`/api/admin/users/${id}/unban`, { method: 'PATCH' }); showToast('Đã mở khóa tài khoản.'); loadUsers(); }
+  catch { showToast('Lỗi khi mở khóa.'); }
+}
+async function promoteUser(id) {
+  if (!confirm('Cấp quyền Admin cho người dùng này?')) return;
+  try { await apiFetch(`/api/admin/users/${id}/promote`, { method: 'PATCH' }); showToast('Đã cấp quyền Admin.'); loadUsers(); }
+  catch { showToast('Lỗi khi cấp quyền.'); }
+}
+
+// ── Quizzes ───────────────────────────────────────────────────────────────
+async function loadAdminQuizzes() {
+  try {
+    const { data } = await apiFetch('/api/admin/quizzes?limit=50');
+    document.getElementById('quizzesTable').innerHTML = data.map(q => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3 font-medium text-gray-800">${q.title}</td>
+        <td class="px-4 py-3 text-gray-500 text-sm">${q.subject_name}</td>
+        <td class="px-4 py-3"><span class="badge-count ${diffBg(q.difficulty)} text-xs px-2">${q.difficulty}</span></td>
+        <td class="px-4 py-3 text-gray-500 text-sm text-right">${q.question_count}</td>
+        <td class="px-4 py-3 text-gray-500 text-sm text-right">${(q.attempt_count||0).toLocaleString()}</td>
+        <td class="px-5 py-3 text-center">
+          <div class="flex gap-2 justify-center">
+            <button onclick="deleteQuiz(${q.id})" class="text-xs bg-red-50 text-red-500 hover:bg-red-100 px-2.5 py-1 rounded-lg font-semibold transition-colors">Xóa</button>
+          </div>
+        </td>
+      </tr>`).join('') || '<tr><td colspan="6" class="px-5 py-10 text-center text-gray-400">Chưa có bộ đề.</td></tr>';
+  } catch { showToast('Lỗi tải bộ đề.'); }
+}
+
+async function deleteQuiz(id) {
+  if (!confirm('Xóa bộ đề này? Toàn bộ câu hỏi và lịch sử làm bài sẽ bị xóa.')) return;
+  try { await apiFetch(`/api/admin/quizzes/${id}`, { method: 'DELETE' }); showToast('Đã xóa bộ đề.'); loadAdminQuizzes(); }
+  catch { showToast('Lỗi khi xóa.'); }
+}
+
+// ── Quiz modal ────────────────────────────────────────────────────────────
+async function loadSubjectsCache() {
+  const { data } = await apiFetch('/api/subjects');
+  SUBJECTS_CACHE = data;
+}
+
+function openQuizModal(quiz) {
+  document.getElementById('qmId').value        = quiz?.id || '';
+  document.getElementById('qmTitle').value     = quiz?.title || '';
+  document.getElementById('qmTime').value      = quiz?.time_minutes || 10;
+  document.getElementById('quizModalTitle').textContent = quiz ? 'Sửa bộ đề' : 'Thêm bộ đề trắc nghiệm';
+
+  const subSel = document.getElementById('qmSubject');
+  subSel.innerHTML = SUBJECTS_CACHE.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (quiz) subSel.value = quiz.subject_id;
+
+  const diffSel = document.getElementById('qmDifficulty');
+  if (quiz) diffSel.value = quiz.difficulty;
+
+  document.getElementById('questionsBuilder').innerHTML = '';
+  if (!quiz) addQuestion();  // start with 1 empty question
+
+  document.getElementById('quizModal').classList.add('open');
+}
+
+function closeQuizModal() {
+  document.getElementById('quizModal').classList.remove('open');
+}
+
+let qCount = 0;
+function addQuestion() {
+  qCount++;
+  const qb = document.getElementById('questionsBuilder');
+  const div = document.createElement('div');
+  div.id = `qblock-${qCount}`;
+  div.className = 'bg-gray-50 rounded-xl p-4 space-y-3';
+  div.innerHTML = `
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-semibold text-gray-700">Câu hỏi ${qb.children.length + 1}</span>
+      <button onclick="removeQuestion(${qCount})" class="text-xs text-red-400 hover:text-red-600">Xóa</button>
+    </div>
+    <textarea rows="2" placeholder="Nội dung câu hỏi..." class="q-text w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"></textarea>
+    <div class="grid grid-cols-2 gap-2">
+      ${['A','B','C','D'].map((l,i) => `
+        <div class="flex items-center gap-2">
+          <input type="radio" name="ans-${qCount}" value="${i}" class="q-ans accent-blue-500 flex-shrink-0">
+          <input type="text" placeholder="Đáp án ${l}" class="q-opt flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+        </div>`).join('')}
+    </div>
+    <p class="text-xs text-gray-400">Chọn ô tròn bên cạnh để đánh dấu đáp án đúng.</p>`;
+  qb.appendChild(div);
+}
+
+function removeQuestion(n) {
+  document.getElementById(`qblock-${n}`)?.remove();
+}
+
+async function saveQuiz() {
+  const title      = document.getElementById('qmTitle').value.trim();
+  const subject_id = document.getElementById('qmSubject').value;
+  const difficulty = document.getElementById('qmDifficulty').value;
+  const time_minutes = parseInt(document.getElementById('qmTime').value);
+  const id         = document.getElementById('qmId').value;
+
+  if (!title) return showToast('Vui lòng nhập tiêu đề.');
+
+  // Collect questions
+  const blocks = document.querySelectorAll('#questionsBuilder > div');
+  const questions = [];
+  for (const block of blocks) {
+    const text    = block.querySelector('.q-text').value.trim();
+    const options = [...block.querySelectorAll('.q-opt')].map(i => i.value.trim());
+    const ansEl   = block.querySelector('.q-ans:checked');
+    if (!text || options.some(o => !o) || !ansEl)
+      return showToast('Vui lòng điền đầy đủ câu hỏi, 4 đáp án và đánh dấu đáp án đúng.');
+    questions.push({ text, options, answer: parseInt(ansEl.value) });
+  }
+
+  if (!questions.length) return showToast('Vui lòng thêm ít nhất 1 câu hỏi.');
+
+  try {
+    const body = { title, subject_id: parseInt(subject_id), difficulty, time_minutes, questions };
+    if (id) {
+      await apiFetch(`/api/admin/quizzes/${id}`, { method: 'PUT', body });
+    } else {
+      await apiFetch('/api/admin/quizzes', { method: 'POST', body });
+    }
+    closeQuizModal();
+    showToast('Lưu bộ đề thành công!');
+    loadAdminQuizzes();
+  } catch (e) { showToast(e.error || 'Lỗi khi lưu bộ đề.'); }
+}
+
+// ── Import from cauhoi.org ────────────────────────────────────────────────
+function openImportModal() {
+  const subSel = document.getElementById('imSubject');
+  subSel.innerHTML = SUBJECTS_CACHE.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('imSlug').value = '';
+  document.getElementById('importResult').className = 'hidden rounded-xl p-4 text-sm';
+  document.getElementById('importResult').innerHTML = '';
+  document.getElementById('importBtn').disabled = false;
+  document.getElementById('importBtn').innerHTML = `
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Bắt đầu nhập`;
+  document.getElementById('importModal').classList.add('open');
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+
+async function runImport() {
+  const slug       = document.getElementById('imSlug').value.trim();
+  const subject_id = document.getElementById('imSubject').value;
+  const difficulty = document.getElementById('imDifficulty').value;
+  const time_minutes = parseInt(document.getElementById('imTime').value) || 45;
+  const max_sets   = parseInt(document.getElementById('imMaxSets').value) || 10;
+
+  if (!slug) return showToast('Vui lòng nhập slug môn học.');
+
+  const btn = document.getElementById('importBtn');
+  const resultEl = document.getElementById('importResult');
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="animate-spin" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang nhập...`;
+  resultEl.className = 'rounded-xl p-4 text-sm bg-blue-50 text-blue-700';
+  resultEl.innerHTML = `Đang tìm và tải đề thi cho môn "<strong>${slug}</strong>"... Quá trình này có thể mất vài phút.`;
+
+  try {
+    const data = await apiFetch('/api/admin/import-cauhoi', {
+      method: 'POST',
+      body: { subject_slug: slug, subject_id: parseInt(subject_id), difficulty, time_minutes, max_sets }
+    });
+
+    const { imported, failed, total_found, errors } = data;
+    const errHtml = errors.length
+      ? `<ul class="mt-2 space-y-0.5 text-xs opacity-70">${errors.map(e => `<li>• ${e.url?.split('/').filter(Boolean).pop()}: ${e.reason}</li>`).join('')}</ul>`
+      : '';
+
+    if (imported > 0) {
+      resultEl.className = 'rounded-xl p-4 text-sm bg-green-50 text-green-800';
+      resultEl.innerHTML = `✅ Nhập thành công <strong>${imported}</strong> bộ đề (tìm thấy ${total_found}, thất bại ${failed}).${errHtml}`;
+      showToast(`Đã nhập ${imported} bộ đề từ cauhoi.org!`);
+      loadAdminQuizzes();
+    } else {
+      resultEl.className = 'rounded-xl p-4 text-sm bg-red-50 text-red-700';
+      resultEl.innerHTML = `❌ Không nhập được bộ đề nào (tìm thấy ${total_found} URL). Kiểm tra lại slug và thử lại.${errHtml}`;
+    }
+  } catch (e) {
+    resultEl.className = 'rounded-xl p-4 text-sm bg-red-50 text-red-700';
+    resultEl.innerHTML = `❌ Lỗi: ${e.error || e.message || 'Không thể kết nối server.'}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Nhập lại`;
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('vi-VN');
+}
+function fmtSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+function statusLabel(s) { return { PENDING:'Chờ duyệt', APPROVED:'Đã duyệt', REJECTED:'Từ chối' }[s] || s; }
+function diffBg(d) { return { 'Dễ':'bg-green-100 text-green-700', 'Trung bình':'bg-yellow-100 text-yellow-700', 'Khó':'bg-red-100 text-red-700' }[d] || 'bg-gray-100 text-gray-600'; }
+</script>
+</body>
+</html>
