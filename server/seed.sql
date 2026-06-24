@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS documents (
   file_size      INT UNSIGNED    NOT NULL,
   download_count INT UNSIGNED    NOT NULL DEFAULT 0,
   status         ENUM('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  quiz_status    ENUM('NONE','PENDING','DONE','FAILED') NOT NULL DEFAULT 'NONE',
   created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (subject_id)  REFERENCES subjects(id) ON DELETE RESTRICT,
   FOREIGN KEY (uploader_id) REFERENCES users(id)    ON DELETE CASCADE,
@@ -95,12 +96,15 @@ CREATE TABLE IF NOT EXISTS quizzes (
   id            INT UNSIGNED     AUTO_INCREMENT PRIMARY KEY,
   title         VARCHAR(200)     NOT NULL,
   subject_id    INT UNSIGNED     NOT NULL,
+  document_id   INT UNSIGNED     NULL,
   difficulty    ENUM('Dễ','Trung bình','Khó') NOT NULL DEFAULT 'Trung bình',
   time_minutes  TINYINT UNSIGNED NOT NULL DEFAULT 10,
   attempt_count INT UNSIGNED     NOT NULL DEFAULT 0,
   created_at    DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE RESTRICT,
-  INDEX idx_subject_quiz (subject_id)
+  FOREIGN KEY (subject_id)  REFERENCES subjects(id)   ON DELETE RESTRICT,
+  FOREIGN KEY (document_id) REFERENCES documents(id)  ON DELETE CASCADE,
+  INDEX idx_subject_quiz (subject_id),
+  INDEX idx_doc_quiz     (document_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS questions (

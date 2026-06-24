@@ -417,6 +417,16 @@
       <!-- Document Preview (PDF / DOCX / PPTX) -->
       <div id="dd-preview"></div>
 
+      <!-- Document Quiz -->
+      <div id="dd-quizSection" class="hidden bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Kiểm tra kiến thức
+          <span class="text-xs font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full ml-1">AI sinh tự động</span>
+        </h2>
+        <div id="dd-quizContent"></div>
+      </div>
+
       <!-- Discussion -->
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <h2 class="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
@@ -456,9 +466,17 @@
 
   <!-- List view -->
   <div id="quizList" class="max-w-screen-xl mx-auto px-4 lg:px-8 py-8">
-    <div class="mb-7">
-      <h1 class="text-2xl font-bold text-gray-800">Bộ đề trắc nghiệm</h1>
-      <p class="text-gray-400 mt-1 text-sm">Luyện tập và kiểm tra kiến thức theo môn học</p>
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Bộ đề trắc nghiệm</h1>
+        <p class="text-gray-400 mt-1 text-sm">Luyện tập và kiểm tra kiến thức theo môn học</p>
+      </div>
+      <div class="relative w-full sm:max-w-xs">
+        <input id="quizSearch" type="text" placeholder="Tìm kiếm bộ đề..."
+          class="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+          oninput="buildQuizGrid()">
+        <svg class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </div>
     </div>
     <div class="flex gap-2 mb-6 overflow-x-auto pb-1" id="quizFilterChips"></div>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" id="quizGrid"></div>
@@ -734,6 +752,7 @@ let docSort        = 'newest';
 let currentDoc     = null;
 
 let curQuiz = null, curQ = 0, curQuestions = [], answers = [], timer = null, tLeft = 0;
+let quizSubjectFilter = 'all';
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1099,8 +1118,8 @@ async function openDoc(id) {
     // Preview section
     buildPreview(d);
 
-    // Load comments, related docs, and related quizzes
-    await Promise.all([buildComments(d), buildRelated(d)]);
+    // Load comments, related docs, and document quiz
+    await Promise.all([buildComments(d), buildRelated(d), buildDocQuiz(d)]);
   } catch (err) {
     document.getElementById('dd-title').textContent = 'Không tìm thấy tài liệu.';
   }
@@ -1292,9 +1311,14 @@ async function buildFavPage() {
 // ─── QUIZ ────────────────────────────────────────────────────────────────────
 async function buildQuizGrid() {
   const grid = document.getElementById('quizGrid');
+  if (!grid) return;
   grid.innerHTML = '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Đang tải...</p>';
   try {
-    const { data } = await apiFetch('/api/quizzes');
+    const params = new URLSearchParams();
+    if (quizSubjectFilter !== 'all') params.set('subject', quizSubjectFilter);
+    const q = (document.getElementById('quizSearch')?.value || '').trim();
+    if (q) params.set('q', q);
+    const { data } = await apiFetch('/api/quizzes?' + params.toString());
     grid.innerHTML = (data && data.length)
       ? data.map(q => quizCard(q)).join('')
       : '<p class="col-span-3 text-center text-gray-400 text-sm py-12">Không tìm thấy bộ đề nào.</p>';
@@ -1303,10 +1327,18 @@ async function buildQuizGrid() {
 
 function buildQuizFilterChips() {
   const subjects = ['all', ...SUBJECTS_CACHE.map(s => s.name)];
-  document.getElementById('quizFilterChips').innerHTML = subjects.slice(0, 7).map(f => {
-    const label = f === 'all' ? 'Tất cả' : f;
-    return `<button class="f-tab whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-500 transition-all">${label}</button>`;
+  document.getElementById('quizFilterChips').innerHTML = subjects.map(f => {
+    const label  = f === 'all' ? 'Tất cả' : f;
+    const active = quizSubjectFilter === f;
+    return `<button onclick="setQuizFilter('${f.replace(/'/g, "\\'")}')"
+      class="f-tab ${active ? 'active' : ''} whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-500 transition-all">${label}</button>`;
   }).join('');
+}
+
+function setQuizFilter(f) {
+  quizSubjectFilter = f;
+  buildQuizFilterChips();
+  buildQuizGrid();
 }
 
 const DIFF_STYLE = {
@@ -1447,6 +1479,41 @@ function startTimer() {
     document.getElementById('qpTimer').textContent = `${m}:${s}`;
     if (tLeft <= 0) { clearInterval(timer); finishQuiz(); }
   }, 1000);
+}
+
+// ─── DOCUMENT QUIZ ───────────────────────────────────────────────────────────
+async function buildDocQuiz(d) {
+  const section = document.getElementById('dd-quizSection');
+  const content = document.getElementById('dd-quizContent');
+  if (!section || !content) return;
+  try {
+    const { data: quiz } = await apiFetch(`/api/quizzes/by-document/${d.id}`);
+    if (!quiz) {
+      if (d.quiz_status === 'PENDING') {
+        section.classList.remove('hidden');
+        content.innerHTML = `
+          <div class="flex items-center gap-3 py-3 text-sm text-gray-500">
+            <svg class="animate-spin" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-opacity=".25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity=".75"/></svg>
+            AI đang phân tích tài liệu và sinh câu hỏi, vui lòng quay lại sau...
+          </div>`;
+      } else {
+        section.classList.add('hidden');
+      }
+      return;
+    }
+    section.classList.remove('hidden');
+    // Reuse quizCard but replace onclick to navigate to quiz page
+    const cardHtml = quizCard(quiz).replace(
+      `onclick="startQuiz(${quiz.id})"`,
+      `onclick="openDocQuiz(${quiz.id})"`
+    );
+    content.innerHTML = cardHtml;
+  } catch { section.classList.add('hidden'); }
+}
+
+function openDocQuiz(quizId) {
+  nav('quiz');
+  startQuiz(quizId);
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────

@@ -86,7 +86,9 @@ router.get('/', optionalToken, async (req, res, next) => {
 router.get('/:id(\\d+)', optionalToken, async (req, res, next) => {
   try {
     const [rows] = await db.query(
-      `SELECT d.*, s.name AS subject_name, s.color AS subject_color, s.bg AS subject_bg,
+      `SELECT d.id, d.title, d.description, d.file_type, d.file_size, d.file_name,
+              d.download_count, d.status, d.quiz_status, d.created_at,
+              s.name AS subject_name, s.color AS subject_color, s.bg AS subject_bg,
               u.name AS uploader_name
        FROM documents d
        JOIN subjects s ON s.id = d.subject_id
@@ -137,7 +139,7 @@ router.post('/', verifyToken, upload.single('file'), async (req, res, next) => {
         return res.status(400).json({ error: 'Vui lòng chọn môn học.' });
 
       // Verify subject exists
-      const [[subj]] = await db.query('SELECT id FROM subjects WHERE id = ?', [subject_id]);
+      const [[subj]] = await db.query('SELECT id, name FROM subjects WHERE id = ?', [subject_id]);
       if (!subj) return res.status(400).json({ error: 'Môn học không tồn tại.' });
 
       const ext      = path.extname(req.file.originalname).toUpperCase().replace('.', '');
@@ -155,6 +157,15 @@ router.post('/', verifyToken, upload.single('file'), async (req, res, next) => {
         data: { id: result.insertId, title: title.trim(), status: 'PENDING' },
         message: 'Tài liệu đã được tải lên và đang chờ duyệt.',
       });
+
+      // Fire-and-forget: sinh quiz bằng AI sau khi upload (không chờ)
+      if (process.env.GEMINI_API_KEY) {
+        const { generateQuizForDocument } = require('../services/quizGenerator');
+        generateQuizForDocument(
+          result.insertId, title.trim(), description.trim(),
+          subj.name, subj.id, filePath, fileType
+        ).catch(() => {});
+      }
     } catch (err2) { next(err2); }
   });
 });

@@ -32,6 +32,24 @@ router.get('/', optionalToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/quizzes/by-document/:docId  — quiz linked to a specific document
+router.get('/by-document/:docId(\\d+)', optionalToken, async (req, res, next) => {
+  try {
+    const [[quiz]] = await db.query(
+      `SELECT q.id, q.title, q.difficulty, q.time_minutes, q.attempt_count, q.created_at,
+              s.name AS subject_name, s.color AS subject_color, s.bg AS subject_bg,
+              (SELECT COUNT(*) FROM questions WHERE quiz_id = q.id) AS question_count,
+              d.quiz_status
+       FROM quizzes q
+       JOIN subjects  s ON s.id = q.subject_id
+       JOIN documents d ON d.id = q.document_id
+       WHERE q.document_id = ?`,
+      [req.params.docId]
+    );
+    res.json({ data: quiz || null });
+  } catch (err) { next(err); }
+});
+
 // GET /api/quizzes/:id  — full quiz with questions (no correct answers)
 router.get('/:id(\\d+)', verifyToken, async (req, res, next) => {
   try {
