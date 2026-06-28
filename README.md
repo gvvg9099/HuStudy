@@ -1,6 +1,6 @@
-# HuStudy - Report Backend Demo
+# HuStudy - Report Backend Demo (MySQL)
 
-This is a minimal demo for "report document" functionality (Node/Express + Postgres).
+This is a minimal demo for "report document" functionality using Node/Express + MySQL.
 
 Features:
 - POST /api/docs/:id/report — submit a report for a document
@@ -9,9 +9,9 @@ Features:
 - Static demo UI in `public/` (index.html + admin.html)
 
 Setup
-1. Copy `.env.example` to `.env` and fill DATABASE_URL and ADMIN_TOKEN.
+1. Copy `.env.example` to `.env` and fill MySQL connection vars and ADMIN_TOKEN.
 2. Create database and run migration:
-   psql "$DATABASE_URL" -f db/init.sql
+   mysql -u <user> -p < db/init.sql
 3. Install deps:
    npm install
 4. Start server:
@@ -25,4 +25,4 @@ Usage (demo)
 
 Notes
 - This is a demo. For production, add proper auth, rate-limiting, duplicate-report policy, email/queue notifications, and tests.
-- If you want, I can add a simple PR that creates a branch, commits these files, and opens a pull request for review.
+- If you want, I can add Docker Compose to run MySQL + app together, or create a PR with these changes.

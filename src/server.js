@@ -21,28 +21,28 @@ app.post('/api/docs/:id/report', async (req, res) => {
 
   try {
     // ensure document exists
-    const docRes = await db.query('SELECT id, flagged FROM documents WHERE id = $1', [docId]);
+    const docRes = await db.query('SELECT id, flagged FROM documents WHERE id = ?', [docId]);
     if (docRes.rowCount === 0) return res.status(404).json({ error: 'document not found' });
 
     // insert report
     await db.query(
-      `INSERT INTO reports (doc_id, user_id, user_name, reason) VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO reports (doc_id, user_id, user_name, reason) VALUES (?, ?, ?, ?)`,
       [docId, user_id || null, user_name || 'anon', reason || null]
     );
 
     // recompute count (simple approach)
-    const countRes = await db.query('SELECT COUNT(*)::int AS cnt FROM reports WHERE doc_id = $1', [docId]);
-    const count = countRes.rows[0].cnt;
+    const countRes = await db.query('SELECT COUNT(*) AS cnt FROM reports WHERE doc_id = ?', [docId]);
+    const count = countRes.rows[0] ? countRes.rows[0].cnt : 0;
 
     // update documents.report_count and check threshold
-    let flagged = docRes.rows[0].flagged;
-    await db.query('UPDATE documents SET report_count = $1 WHERE id = $2', [count, docId]);
+    let flagged = !!docRes.rows[0].flagged;
+    await db.query('UPDATE documents SET report_count = ? WHERE id = ?', [count, docId]);
     if (count >= 3 && !flagged) {
-      await db.query('UPDATE documents SET flagged = true WHERE id = $1', [docId]);
+      await db.query('UPDATE documents SET flagged = true WHERE id = ?', [docId]);
       flagged = true;
       // create a simple admin notification record
       await db.query(
-        'INSERT INTO admin_notifications (doc_id, message) VALUES ($1, $2)',
+        'INSERT INTO admin_notifications (doc_id, message) VALUES (?, ?)',
         [docId, `Document ${docId} reached ${count} reports`]
       );
       console.log(`Doc ${docId} flagged; admin notified.`);
@@ -68,10 +68,10 @@ app.get('/api/docs/:id/reports', async (req, res) => {
 
   try {
     const reports = await db.query(
-      `SELECT id, user_id, user_name, reason, created_at FROM reports WHERE doc_id = $1 ORDER BY created_at ASC`,
+      `SELECT id, user_id, user_name, reason, created_at FROM reports WHERE doc_id = ? ORDER BY created_at ASC`,
       [docId]
     );
-    const doc = await db.query('SELECT id, title, content, report_count, flagged FROM documents WHERE id = $1', [docId]);
+    const doc = await db.query('SELECT id, title, content, report_count, flagged FROM documents WHERE id = ?', [docId]);
     return res.json({ doc: doc.rows[0] || null, reports: reports.rows });
   } catch (err) {
     console.error(err);
