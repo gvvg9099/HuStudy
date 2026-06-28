@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Demo - Danh sách tài liệu (API)</title>
+  <style>
+    body { font-family: system-ui, Arial; padding: 20px; max-width:900px; margin:auto; }
+    .doc { border:1px solid #ddd; padding:12px; margin-bottom:12px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;}
+    .meta { color:#666; font-size:13px }
+    button { padding:8px 12px; border-radius:6px; cursor:pointer; }
+    .report-count { background:#fee; border:1px solid #fbb; padding:4px 8px; border-radius:12px; color:#900; margin-left:8px; }
+    #modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.4); }
+    #modal .card { background:#fff; padding:18px; border-radius:8px; width:320px; box-shadow:0 6px 18px rgba(0,0,0,0.2); }
+    .small { font-size:13px; color:#444; }
+    a.admin { display:inline-block; margin-bottom:16px; }
+    .notice { background:#e7f6ff; border:1px solid #bfe6ff; padding:8px 12px; border-radius:6px; color:#036; margin-bottom:12px;}
+  </style>
+</head>
+<body>
+  <h1>Danh sách tài liệu (Demo)</h1>
+  <a class="admin" href="admin.html">Mở trang Admin để xem tài liệu bị báo cáo</a>
+  <div id="noticeContainer"></div>
+  <div id="list"></div>
+
+  <div id="modal">
+    <div class="card">
+      <h3>Báo cáo tài liệu</h3>
+      <div id="modalDocTitle" class="small"></div>
+      <div style="margin-top:10px">
+        <label class="small">Lý do</label><br/>
+        <textarea id="reason" rows="4" style="width:100%"></textarea>
+      </div>
+      <div style="margin-top:10px; text-align:right">
+        <button id="cancel">Hủy</button>
+        <button id="submitReport" style="margin-left:8px;background:#d33;color:#fff;border:none;">Gửi báo cáo</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = '';
+
+let currentDoc = null;
+const listEl = document.getElementById('list');
+const modal = document.getElementById('modal');
+const modalDocTitle = document.getElementById('modalDocTitle');
+const reasonEl = document.getElementById('reason');
+
+async function fetchDocs(){
+  const r = await fetch(API + '/api/docs');
+  return r.json();
+}
+
+async function render(){
+  const data = await fetchDocs();
+  listEl.innerHTML = '';
+  data.docs.forEach(d=>{
+    const div = document.createElement('div');
+    div.className = 'doc';
+    const left = document.createElement('div');
+    left.innerHTML = `<strong>${d.title}</strong><div class="meta">${d.content}</div>`;
+    const right = document.createElement('div');
+    const reportsCount = d.report_count || 0;
+    const countBadge = `<span class="report-count">${reportsCount}</span>`;
+    right.innerHTML = `<button class="reportBtn">Báo cáo</button>` + (reportsCount?countBadge:'');
+    if (d.flagged){
+      const note = document.createElement('div');
+      note.className = 'small';
+      note.style.color = '#b00';
+      note.textContent = 'Đã chuyển admin xem xét';
+      left.appendChild(note);
+    }
+    div.appendChild(left);
+    div.appendChild(right);
+    listEl.appendChild(div);
+
+    div.querySelector('.reportBtn').addEventListener('click', ()=>{
+      currentDoc = d;
+      modalDocTitle.textContent = d.title;
+      reasonEl.value = '';
+      modal.style.display = 'flex';
+    });
+  });
+}
+
+document.getElementById('cancel').addEventListener('click', ()=>{ modal.style.display='none'; });
+document.getElementById('submitReport').addEventListener('click', async ()=>{
+  const reason = reasonEl.value.trim() || 'Không ghi';
+  const user = prompt('Nhập tên người báo cáo (demo):','user-' + Math.floor(Math.random()*1000));
+  const payload = { user_name: user || 'anon', reason };
+  await fetch(API + '/api/docs/' + currentDoc.id + '/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  modal.style.display='none';
+  await render();
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Reported Documents (Demo)</title>
+  <style>
+    body { font-family: system-ui, Arial; padding:20px; max-width:900px; margin:auto; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th,td { padding:8px; border:1px solid #eee; text-align:left; vertical-align:top; }
+    button { padding:6px 10px; border-radius:6px; cursor:pointer; }
+    .danger { background:#d33;color:#fff;border:none; }
+    .muted { color:#666; font-size:13px; }
+    a.home { display:inline-block; margin-bottom:12px; }
+    input.token { padding:6px; margin-left:8px; width:320px; }
+  </style>
+</head>
+<body>
+  <h1>Admin - Tài liệu bị báo cáo</h1>
+  <a class="home" href="index.html">Quay lại trang danh sách</a>
+  <div style="margin-top:12px">
+    <label>Admin token:</label>
+    <input id="adminToken" class="token" value="" placeholder="nhập ADMIN_TOKEN (demo)"/>
+    <button id="load" style="margin-left:8px">Load reported</button>
+  </div>
+  <div id="content"></div>
+
+<script>
+const API = '';
+
+async function fetchReported(token){
+  const r = await fetch(API + '/api/reported?adminToken=' + encodeURIComponent(token));
+  return r.json();
+}
+async function fetchReports(docId, token){
+  const r = await fetch(API + '/api/docs/' + docId + '/reports?adminToken=' + encodeURIComponent(token));
+  return r.json();
+}
+
+document.getElementById('load').addEventListener('click', async ()=>{
+  const token = document.getElementById('adminToken').value.trim();
+  if (!token) return alert('Nhập admin token demo');
+  const data = await fetchReported(token);
+  const reported = data.docs || [];
+  if (reported.length === 0){
+    document.getElementById('content').innerHTML = '<div class="muted">Chưa có báo cáo.</div>';
+    return;
+  }
+  let html = '<table><thead><tr><th>Tài liệu</th><th>Số báo cáo</th><th>Chi tiết báo cáo</th><th>Hành động</th></tr></thead><tbody>';
+  for (const d of reported){
+    const rdata = await fetchReports(d.id, token);
+    const reports = rdata.reports || [];
+    html += `<tr>
+      <td><strong>${d.title}</strong><div class="muted">${d.content}</div></td>
+      <td style="width:80px;text-align:center">${d.report_count}${d.flagged?'<div class="muted">(flagged)</div>':''}</td>
+      <td>${reports.map(r=>`<div><strong>${r.user_name}</strong> (${new Date(r.created_at).toLocaleString()}): ${r.reason}</div>`).join('')}</td>
+      <td style="width:220px">
+        <button class="hideBtn" data-id="${d.id}">Ẩn</button>
+        <button class="deleteBtn danger" data-id="${d.id}" style="margin-left:6px">Xóa</button>
+        <button class="ignoreBtn" data-id="${d.id}" style="margin-left:6px">Bỏ qua</button>
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  html += '<div style="margin-top:12px"><button id="reset">Reset demo (xóa DB seed)</button></div>';
+  document.getElementById('content').innerHTML = html;
+
+  // attach handlers (simplified: call backend actions via fetch to endpoints you may add)
+  document.getElementById('reset').addEventListener('click', async ()=>{
+    if (!confirm('Reset demo bằng cách xóa và re-seed?')) return;
+    // NOTE: backend endpoint for reset is not provided in demo; instruct user to run migration manually.
+    alert('Reset requires running db/init.sql again on the server (demo).');
+  });
+});
+</script>
+</body>
+</html>
