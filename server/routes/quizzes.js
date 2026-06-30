@@ -2,7 +2,7 @@ const router = require('express').Router();
 const db     = require('../db');
 const { verifyToken, optionalToken } = require('../middleware/auth');
 
-// GET /api/quizzes  — list quizzes (no answers)
+// GET /api/quizzes — lấy danh sách quiz (không kèm đáp án)
 router.get('/', optionalToken, async (req, res, next) => {
   try {
     const { subject, difficulty } = req.query;
@@ -32,7 +32,7 @@ router.get('/', optionalToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/quizzes/by-document/:docId  — quiz linked to a specific document
+// GET /api/quizzes/by-document/:docId — lấy quiz gắn với một tài liệu cụ thể
 router.get('/by-document/:docId(\\d+)', optionalToken, async (req, res, next) => {
   try {
     const [[quiz]] = await db.query(
@@ -50,7 +50,7 @@ router.get('/by-document/:docId(\\d+)', optionalToken, async (req, res, next) =>
   } catch (err) { next(err); }
 });
 
-// GET /api/quizzes/:id  — full quiz with questions (no correct answers)
+// GET /api/quizzes/:id — lấy chi tiết quiz cùng câu hỏi (không kèm đáp án đúng)
 router.get('/:id(\\d+)', verifyToken, async (req, res, next) => {
   try {
     const [[quiz]] = await db.query(
@@ -67,12 +67,12 @@ router.get('/:id(\\d+)', verifyToken, async (req, res, next) => {
       'SELECT id, text, options, sort_order FROM questions WHERE quiz_id = ? ORDER BY sort_order',
       [req.params.id]
     );
-    // Parse JSON options
+    // Parse chuỗi JSON thành danh sách đáp án
     questions.forEach(q => {
       if (typeof q.options === 'string') q.options = JSON.parse(q.options);
     });
 
-    // User's best attempt
+    // Lần làm bài đạt điểm cao nhất của người dùng
     const [[bestAttempt]] = await db.query(
       `SELECT score, total, time_elapsed, created_at
        FROM quiz_attempts WHERE user_id = ? AND quiz_id = ?
@@ -84,14 +84,14 @@ router.get('/:id(\\d+)', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/quizzes/:id/submit
+// POST /api/quizzes/:id/submit — nộp bài làm quiz
 router.post('/:id(\\d+)/submit', verifyToken, async (req, res, next) => {
   try {
     const { answers, time_elapsed } = req.body;
     if (!Array.isArray(answers))
       return res.status(400).json({ error: 'Dữ liệu đáp án không hợp lệ.' });
 
-    // Fetch correct answers server-side
+    // Lấy đáp án đúng từ phía server
     const [questions] = await db.query(
       'SELECT id, answer FROM questions WHERE quiz_id = ? ORDER BY sort_order',
       [req.params.id]
@@ -107,13 +107,13 @@ router.post('/:id(\\d+)/submit', verifyToken, async (req, res, next) => {
       return { question_id: q.id, correct_option: q.answer, user_answer: userAns, is_correct: correct };
     });
 
-    // Save attempt
+    // Lưu lại lần làm bài
     await db.query(
       'INSERT INTO quiz_attempts (user_id, quiz_id, score, total, time_elapsed) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, req.params.id, score, total, time_elapsed || null]
     );
 
-    // Increment attempt count
+    // Tăng số lần làm bài
     await db.query('UPDATE quizzes SET attempt_count = attempt_count + 1 WHERE id = ?', [req.params.id]);
 
     res.json({
@@ -125,7 +125,7 @@ router.post('/:id(\\d+)/submit', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/quizzes/:id/attempts  — user's attempt history
+// GET /api/quizzes/:id/attempts — lịch sử làm bài của người dùng
 router.get('/:id(\\d+)/attempts', verifyToken, async (req, res, next) => {
   try {
     const [rows] = await db.query(
