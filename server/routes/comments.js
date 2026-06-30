@@ -2,7 +2,7 @@ const router = require('express').Router();
 const db     = require('../db');
 const { verifyToken } = require('../middleware/auth');
 
-// GET /api/documents/:docId/comments
+// GET /api/documents/:docId/comments — lấy danh sách bình luận
 router.get('/:docId(\\d+)/comments', async (req, res, next) => {
   try {
     const page  = parseInt(req.query.page)  || 1;
@@ -29,7 +29,7 @@ router.get('/:docId(\\d+)/comments', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/documents/:docId/comments
+// POST /api/documents/:docId/comments — thêm bình luận mới
 router.post('/:docId(\\d+)/comments', verifyToken, async (req, res, next) => {
   try {
     const { content } = req.body;
@@ -38,7 +38,7 @@ router.post('/:docId(\\d+)/comments', verifyToken, async (req, res, next) => {
     if (content.trim().length > 2000)
       return res.status(400).json({ error: 'Bình luận không được vượt quá 2000 ký tự.' });
 
-    // Verify document exists and is approved
+    // Kiểm tra tài liệu tồn tại và đã được duyệt
     const [[doc]] = await db.query(
       "SELECT id FROM documents WHERE id = ? AND status = 'APPROVED'",
       [req.params.docId]
@@ -62,7 +62,7 @@ router.post('/:docId(\\d+)/comments', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /api/documents/:docId/comments/:commentId
+// DELETE /api/documents/:docId/comments/:commentId — xoá bình luận
 router.delete('/:docId(\\d+)/comments/:commentId(\\d+)', verifyToken, async (req, res, next) => {
   try {
     const [[comment]] = await db.query('SELECT * FROM comments WHERE id = ?', [req.params.commentId]);
@@ -75,7 +75,7 @@ router.delete('/:docId(\\d+)/comments/:commentId(\\d+)', verifyToken, async (req
   } catch (err) { next(err); }
 });
 
-// POST /api/documents/:docId/comments/:commentId/like
+// POST /api/documents/:docId/comments/:commentId/like — thích bình luận
 router.post('/:docId(\\d+)/comments/:commentId(\\d+)/like', verifyToken, async (req, res, next) => {
   try {
     await db.query('UPDATE comments SET likes = likes + 1 WHERE id = ?', [req.params.commentId]);
