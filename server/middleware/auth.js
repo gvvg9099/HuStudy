@@ -22,7 +22,7 @@ function optionalToken(req, res, next) {
     try {
       req.user = jwt.verify(header.slice(7), SECRET);
     } catch {
-      // ignore invalid token — treat as unauthenticated
+      // Token không hợp lệ — coi như chưa đăng nhập
     }
   }
   next();
