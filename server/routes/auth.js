@@ -11,7 +11,7 @@ function signToken(user) {
   return jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET, { expiresIn: EXPIRES });
 }
 
-// POST /api/auth/register
+// POST /api/auth/register — đăng ký tài khoản
 router.post('/register', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -36,7 +36,7 @@ router.post('/register', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/login
+// POST /api/auth/login — đăng nhập
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -59,12 +59,12 @@ router.post('/login', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/auth/logout  (stateless — client just discards token)
+// POST /api/auth/logout — đăng xuất (không lưu trạng thái, client chỉ cần bỏ token)
 router.post('/logout', verifyToken, (req, res) => {
   res.json({ message: 'Đăng xuất thành công.' });
 });
 
-// GET /api/auth/me
+// GET /api/auth/me — lấy thông tin người dùng hiện tại
 router.get('/me', verifyToken, async (req, res, next) => {
   try {
     const [rows] = await db.query(
