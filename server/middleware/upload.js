@@ -35,7 +35,7 @@ const upload = multer({
   },
 });
 
-// Post-upload MIME validation using file-type (CJS v16)
+// Kiểm tra MIME thật của file sau khi upload, dùng thư viện file-type (bản CJS v16)
 async function validateMime(filePath, expectedExts, cb) {
   try {
     const { fileTypeFromFile } = await import('file-type');
@@ -51,7 +51,7 @@ async function validateMime(filePath, expectedExts, cb) {
     }
     cb(null);
   } catch {
-    // file-type unavailable — skip deep check
+    // Thư viện file-type không khả dụng — bỏ qua bước kiểm tra chuyên sâu
     cb(null);
   }
 }
