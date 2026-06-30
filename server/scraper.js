@@ -12,21 +12,21 @@ async function fetchHtml(url) {
   return res.text();
 }
 
-// Returns sorted array of quiz page URLs for a given cauhoi.org subject slug
+// Trả về mảng URL các trang quiz (đã sắp xếp) cho một mã môn học (slug) trên cauhoi.org
 async function scrapeSubjectQuizUrls(subjectSlug) {
   const subjectUrl = `https://cauhoi.org/dai-hoc/bai-tap-de-thi-trac-nghiem-online-mon-${subjectSlug}/`;
   const html = await fetchHtml(subjectUrl);
   const $ = cheerio.load(html);
 
   const urls = new Set();
-  // Quiz links follow pattern: mon-{slug}-de-{number}
+  // Link quiz có dạng: mon-{slug}-de-{number}
   const pattern = new RegExp(`mon-${subjectSlug}-de-`, 'i');
 
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href') || '';
     if (pattern.test(href)) {
       const abs = href.startsWith('http') ? href : `https://cauhoi.org${href}`;
-      // Normalise trailing slash
+      // Chuẩn hoá dấu / ở cuối URL
       urls.add(abs.endsWith('/') ? abs : abs + '/');
     }
   });
@@ -34,28 +34,28 @@ async function scrapeSubjectQuizUrls(subjectSlug) {
   return [...urls].sort();
 }
 
-// Parse a single quiz page; returns { title, questions }
+// Phân tích một trang quiz; trả về { title, questions }
 // questions: [{ text, options: string[4], answer: 0-3 }]
 async function scrapeQuizPage(url) {
   const html = await fetchHtml(url);
   const $ = cheerio.load(html);
 
-  // ── Title ──────────────────────────────────────────────────────────────
+  // ── Tiêu đề ────────────────────────────────────────────────────────────
   let title = $('h1.entry-title').first().text().trim()
            || $('h1').first().text().trim()
            || $('title').text().split('–')[0].split('|')[0].trim();
 
   const questions = [];
 
-  // ── Strategy 1: AYS-PRO Quiz Maker class selectors ─────────────────────
-  // Plugin renders all questions in initial HTML (hidden via JS, still in DOM)
+  // ── Cách 1: dùng selector class của plugin AYS-PRO Quiz Maker ──────────
+  // Plugin render sẵn toàn bộ câu hỏi trong HTML gốc (bị ẩn bằng JS nhưng vẫn còn trong DOM)
   const aysQuestions = $('[class*="ays-question-bank"], [class*="ays-question"]:not([class*="count"])');
 
   if (aysQuestions.length > 0) {
     aysQuestions.each((_, qEl) => {
       const $q = $(qEl);
 
-      // Question text: first meaningful text block before options
+      // Nội dung câu hỏi: đoạn text có nghĩa đầu tiên trước phần đáp án
       const $qClone = $q.clone();
       $qClone.find('ul, ol, [class*="answer"]').remove();
       const qText = $qClone.text()
@@ -67,7 +67,7 @@ async function scrapeQuizPage(url) {
       const options = [];
       let answer = 0;
 
-      // Correct answer: .ays-right-answer class OR <strong>/<b> inside answer li
+      // Đáp án đúng: dựa vào class .ays-right-answer HOẶC thẻ <strong>/<b> nằm trong li đáp án
       $q.find('[class*="answer-ul-li"], [class*="ays-answer"]').each((i, ansEl) => {
         const $ans = $(ansEl);
         const isCorrect =
@@ -90,7 +90,7 @@ async function scrapeQuizPage(url) {
     });
   }
 
-  // ── Strategy 2: Ordered list of question blocks (answer-key format) ────
+  // ── Cách 2: danh sách có thứ tự (ol) chứa các khối câu hỏi (dạng đáp án) ─
   if (questions.length === 0) {
     const contentEl = $('.entry-content, .post-content, article').first();
     const root = contentEl.length ? contentEl : $('body');
@@ -122,7 +122,7 @@ async function scrapeQuizPage(url) {
     });
   }
 
-  // ── Strategy 3: Paragraph / inline blocks with A./B./C./D. pattern ─────
+  // ── Cách 3: các đoạn văn / khối nội dung theo mẫu A./B./C./D. ──────────
   if (questions.length === 0) {
     const blocks = [];
     $('p, li, div.question').each((_, el) => {
