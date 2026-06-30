@@ -2,7 +2,7 @@ const router = require('express').Router();
 const db     = require('../db');
 const { verifyToken } = require('../middleware/auth');
 
-// GET /api/favorites  — list user's favorited documents
+// GET /api/favorites — lấy danh sách tài liệu yêu thích của người dùng
 router.get('/', verifyToken, async (req, res, next) => {
   try {
     const [rows] = await db.query(
@@ -23,13 +23,13 @@ router.get('/', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/favorites/:documentId  — toggle favorite
+// POST /api/favorites/:documentId — bật/tắt trạng thái yêu thích
 router.post('/:documentId(\\d+)', verifyToken, async (req, res, next) => {
   try {
     const docId = parseInt(req.params.documentId);
     const userId = req.user.id;
 
-    // Check if already favorited
+    // Kiểm tra xem đã yêu thích trước đó chưa
     const [[existing]] = await db.query(
       'SELECT id FROM favorites WHERE user_id = ? AND document_id = ?',
       [userId, docId]
@@ -39,7 +39,7 @@ router.post('/:documentId(\\d+)', verifyToken, async (req, res, next) => {
       await db.query('DELETE FROM favorites WHERE user_id = ? AND document_id = ?', [userId, docId]);
       res.json({ favorited: false });
     } else {
-      // Verify document exists
+      // Kiểm tra tài liệu có tồn tại không
       const [[doc]] = await db.query("SELECT id FROM documents WHERE id = ? AND status = 'APPROVED'", [docId]);
       if (!doc) return res.status(404).json({ error: 'Tài liệu không tồn tại.' });
 
