@@ -7,10 +7,10 @@ const { scrapeSubjectQuizUrls, scrapeQuizPage } = require('../scraper');
 
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
-// Apply admin check to all routes in this file
+// Áp dụng kiểm tra quyền admin cho mọi route trong file này
 router.use(requireAdmin);
 
-// ─── GET /api/admin/stats ────────────────────────────────────────────────────
+// ─── GET /api/admin/stats — lấy số liệu thống kê tổng quan ─────────────
 router.get('/stats', async (req, res, next) => {
   try {
     const [[users]]    = await db.query('SELECT COUNT(*) AS n FROM users WHERE role = "STUDENT"');
@@ -33,7 +33,7 @@ router.get('/stats', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/admin/documents ────────────────────────────────────────────────
+// ─── GET /api/admin/documents — danh sách tài liệu (quản trị) ──────────
 router.get('/documents', async (req, res, next) => {
   try {
     const status = ['PENDING','APPROVED','REJECTED'].includes(req.query.status)
@@ -67,7 +67,7 @@ router.get('/documents', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── PATCH /api/admin/documents/:id/approve ──────────────────────────────────
+// ─── PATCH /api/admin/documents/:id/approve — duyệt tài liệu ───────────
 router.patch('/documents/:id(\\d+)/approve', async (req, res, next) => {
   try {
     const [result] = await db.query(
@@ -78,7 +78,7 @@ router.patch('/documents/:id(\\d+)/approve', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── PATCH /api/admin/documents/:id/reject ───────────────────────────────────
+// ─── PATCH /api/admin/documents/:id/reject — từ chối tài liệu ──────────
 router.patch('/documents/:id(\\d+)/reject', async (req, res, next) => {
   try {
     const [result] = await db.query(
@@ -89,7 +89,7 @@ router.patch('/documents/:id(\\d+)/reject', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── DELETE /api/admin/documents/:id ─────────────────────────────────────────
+// ─── DELETE /api/admin/documents/:id — xoá tài liệu (quản trị) ─────────
 router.delete('/documents/:id(\\d+)', async (req, res, next) => {
   try {
     const [[doc]] = await db.query('SELECT file_name FROM documents WHERE id = ?', [req.params.id]);
@@ -101,7 +101,7 @@ router.delete('/documents/:id(\\d+)', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/admin/users ────────────────────────────────────────────────────
+// ─── GET /api/admin/users — danh sách người dùng ────────────────────────
 router.get('/users', async (req, res, next) => {
   try {
     const page   = parseInt(req.query.page)  || 1;
@@ -126,7 +126,7 @@ router.get('/users', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── PATCH /api/admin/users/:id/ban ──────────────────────────────────────────
+// ─── PATCH /api/admin/users/:id/ban — cấm người dùng ────────────────────
 router.patch('/users/:id(\\d+)/ban', async (req, res, next) => {
   try {
     if (parseInt(req.params.id) === req.user.id)
@@ -136,7 +136,7 @@ router.patch('/users/:id(\\d+)/ban', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── PATCH /api/admin/users/:id/unban ────────────────────────────────────────
+// ─── PATCH /api/admin/users/:id/unban — bỏ cấm người dùng ──────────────
 router.patch('/users/:id(\\d+)/unban', async (req, res, next) => {
   try {
     await db.query('UPDATE users SET banned = 0 WHERE id = ?', [req.params.id]);
@@ -144,7 +144,7 @@ router.patch('/users/:id(\\d+)/unban', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── PATCH /api/admin/users/:id/promote ──────────────────────────────────────
+// ─── PATCH /api/admin/users/:id/promote — nâng quyền người dùng ────────
 router.patch('/users/:id(\\d+)/promote', async (req, res, next) => {
   try {
     await db.query("UPDATE users SET role = 'ADMIN' WHERE id = ?", [req.params.id]);
@@ -152,7 +152,7 @@ router.patch('/users/:id(\\d+)/promote', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/admin/quizzes ──────────────────────────────────────────────────
+// ─── GET /api/admin/quizzes — danh sách quiz (quản trị) ─────────────────
 router.get('/quizzes', async (req, res, next) => {
   try {
     const page   = parseInt(req.query.page)  || 1;
@@ -176,7 +176,7 @@ router.get('/quizzes', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── POST /api/admin/quizzes ─────────────────────────────────────────────────
+// ─── POST /api/admin/quizzes — tạo quiz mới ──────────────────────────────
 router.post('/quizzes', async (req, res, next) => {
   const conn = await db.getConnection();
   try {
@@ -210,7 +210,7 @@ router.post('/quizzes', async (req, res, next) => {
   }
 });
 
-// ─── PUT /api/admin/quizzes/:id ──────────────────────────────────────────────
+// ─── PUT /api/admin/quizzes/:id — cập nhật quiz ──────────────────────────
 router.put('/quizzes/:id(\\d+)', async (req, res, next) => {
   const conn = await db.getConnection();
   try {
@@ -241,7 +241,7 @@ router.put('/quizzes/:id(\\d+)', async (req, res, next) => {
   }
 });
 
-// ─── POST /api/admin/import-cauhoi ───────────────────────────────────────────
+// ─── POST /api/admin/import-cauhoi — nhập quiz từ cauhoi.org ────────────
 router.post('/import-cauhoi', async (req, res, next) => {
   const { subject_slug, subject_id, difficulty, time_minutes, max_sets } = req.body;
   if (!subject_slug || !subject_id)
@@ -262,7 +262,7 @@ router.post('/import-cauhoi', async (req, res, next) => {
     const targets = urls.slice(0, maxSets);
 
     for (const url of targets) {
-      // Polite delay between requests
+      // Tạm dừng giữa các request để tránh gây quá tải cho trang nguồn
       if (imported > 0) await new Promise(r => setTimeout(r, 600));
 
       try {
@@ -273,7 +273,7 @@ router.post('/import-cauhoi', async (req, res, next) => {
           continue;
         }
 
-        // Insert quiz + questions in one transaction
+        // Thêm quiz và các câu hỏi trong cùng một transaction
         const conn = await db.getConnection();
         try {
           await conn.beginTransaction();
@@ -310,7 +310,7 @@ router.post('/import-cauhoi', async (req, res, next) => {
   }
 });
 
-// ─── DELETE /api/admin/quizzes/:id ───────────────────────────────────────────
+// ─── DELETE /api/admin/quizzes/:id — xoá quiz ────────────────────────────
 router.delete('/quizzes/:id(\\d+)', async (req, res, next) => {
   try {
     await db.query('DELETE FROM quizzes WHERE id = ?', [req.params.id]);
@@ -318,7 +318,7 @@ router.delete('/quizzes/:id(\\d+)', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/admin/subjects ──────────────────────────────────────────────────
+// ─── GET /api/admin/subjects — danh sách môn học (quản trị) ─────────────
 router.get('/subjects', async (req, res, next) => {
   try {
     const [rows] = await db.query('SELECT * FROM subjects ORDER BY name');
@@ -326,7 +326,7 @@ router.get('/subjects', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── POST /api/admin/subjects ────────────────────────────────────────────────
+// ─── POST /api/admin/subjects — tạo môn học mới ──────────────────────────
 router.post('/subjects', async (req, res, next) => {
   try {
     const { name, slug, icon, color, bg } = req.body;
