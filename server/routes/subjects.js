@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db     = require('../db');
 
-// GET /api/subjects
+// GET /api/subjects — lấy danh sách môn học
 router.get('/', async (req, res, next) => {
   try {
     const [rows] = await db.query(`
