@@ -7,7 +7,7 @@ const { upload, validateMime }       = require('../middleware/upload');
 
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
-// ─── GET /api/documents ───────────────────────────────────────────────────────
+// ─── GET /api/documents — lấy danh sách tài liệu ───────────────────────
 router.get('/', optionalToken, async (req, res, next) => {
   try {
     const { q = '', subject = '', type = '', sort = 'newest', page = 1, limit = 12 } = req.query;
@@ -15,19 +15,19 @@ router.get('/', optionalToken, async (req, res, next) => {
     const params  = [];
     let   where   = "d.status = 'APPROVED'";
 
-    // Subject filter
+    // Lọc theo môn học
     if (subject) {
       where += ' AND s.name = ?';
       params.push(subject);
     }
 
-    // File type filter
+    // Lọc theo loại file
     if (type && ['PDF','DOCX','PPTX'].includes(type.toUpperCase())) {
       where += ' AND d.file_type = ?';
       params.push(type.toUpperCase());
     }
 
-    // Full-text or LIKE search
+    // Tìm kiếm toàn văn hoặc theo kiểu LIKE
     if (q.trim()) {
       if (q.trim().length >= 3) {
         where += ' AND MATCH(d.title, d.description) AGAINST (? IN BOOLEAN MODE)';
@@ -42,14 +42,14 @@ router.get('/', optionalToken, async (req, res, next) => {
       ? 'ORDER BY d.download_count DESC, d.created_at DESC'
       : 'ORDER BY d.created_at DESC';
 
-    // Count query
+    // Truy vấn đếm số lượng kết quả
     const [[{ total }]] = await db.query(
       `SELECT COUNT(*) AS total FROM documents d
        JOIN subjects s ON s.id = d.subject_id WHERE ${where}`,
       params
     );
 
-    // Data query
+    // Truy vấn lấy dữ liệu
     const [rows] = await db.query(
       `SELECT d.id, d.title, d.description, d.file_type, d.file_size,
               d.download_count, d.status, d.created_at,
@@ -64,7 +64,7 @@ router.get('/', optionalToken, async (req, res, next) => {
       [...params, parseInt(limit), offset]
     );
 
-    // Mark is_favorited for authenticated user
+    // Đánh dấu is_favorited cho người dùng đã đăng nhập
     if (req.user && rows.length) {
       const ids = rows.map(r => r.id);
       const [favs] = await db.query(
@@ -82,7 +82,7 @@ router.get('/', optionalToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/documents/:id ───────────────────────────────────────────────────
+// ─── GET /api/documents/:id — lấy chi tiết một tài liệu ────────────────
 router.get('/:id(\\d+)', optionalToken, async (req, res, next) => {
   try {
     const [rows] = await db.query(
@@ -99,7 +99,7 @@ router.get('/:id(\\d+)', optionalToken, async (req, res, next) => {
     if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy tài liệu.' });
 
     const doc = rows[0];
-    // Non-approved documents only visible to owner or admin
+    // Tài liệu chưa được duyệt chỉ chủ sở hữu hoặc admin mới xem được
     if (doc.status !== 'APPROVED') {
       if (!req.user || (req.user.id !== doc.uploader_id && req.user.role !== 'ADMIN')) {
         return res.status(404).json({ error: 'Không tìm thấy tài liệu.' });
@@ -120,14 +120,14 @@ router.get('/:id(\\d+)', optionalToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── POST /api/documents (upload) ────────────────────────────────────────────
+// ─── POST /api/documents — tải lên tài liệu ─────────────────────────────
 router.post('/', verifyToken, upload.single('file'), async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'Vui lòng chọn file.' });
 
   const filePath = req.file.path;
   const relPath  = path.relative(UPLOAD_DIR, filePath).replace(/\\/g, '/');
 
-  // Async MIME validation
+  // Kiểm tra MIME bất đồng bộ
   validateMime(filePath, [], async (err) => {
     if (err) return res.status(422).json({ error: err.message });
 
@@ -138,7 +138,7 @@ router.post('/', verifyToken, upload.single('file'), async (req, res, next) => {
       if (!subject_id)
         return res.status(400).json({ error: 'Vui lòng chọn môn học.' });
 
-      // Verify subject exists
+      // Kiểm tra môn học có tồn tại không
       const [[subj]] = await db.query('SELECT id, name FROM subjects WHERE id = ?', [subject_id]);
       if (!subj) return res.status(400).json({ error: 'Môn học không tồn tại.' });
 
@@ -170,7 +170,7 @@ router.post('/', verifyToken, upload.single('file'), async (req, res, next) => {
   });
 });
 
-// ─── DELETE /api/documents/:id ────────────────────────────────────────────────
+// ─── DELETE /api/documents/:id — xoá tài liệu ───────────────────────────
 router.delete('/:id(\\d+)', verifyToken, async (req, res, next) => {
   try {
     const [[doc]] = await db.query('SELECT * FROM documents WHERE id = ?', [req.params.id]);
@@ -178,7 +178,7 @@ router.delete('/:id(\\d+)', verifyToken, async (req, res, next) => {
     if (doc.uploader_id !== req.user.id && req.user.role !== 'ADMIN')
       return res.status(403).json({ error: 'Không có quyền xóa tài liệu này.' });
 
-    // Delete physical file
+    // Xoá file vật lý trên ổ đĩa
     const filePath = path.join(UPLOAD_DIR, doc.file_name);
     fs.unlink(filePath, () => {});
 
@@ -187,8 +187,8 @@ router.delete('/:id(\\d+)', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ─── GET /api/documents/:id/download ─────────────────────────────────────────
-// Accepts Authorization header OR ?token= query param (needed for browser anchor downloads)
+// ─── GET /api/documents/:id/download — tải xuống tài liệu ──────────────
+// Chấp nhận header Authorization HOẶC tham số ?token= trên URL (cần thiết khi tải bằng thẻ <a> trên trình duyệt)
 router.get('/:id(\\d+)/download', (req, res, next) => {
   if (!req.headers.authorization && req.query.token) {
     req.headers.authorization = 'Bearer ' + req.query.token;
@@ -206,7 +206,7 @@ router.get('/:id(\\d+)/download', (req, res, next) => {
     if (!fs.existsSync(filePath))
       return res.status(404).json({ error: 'File không tồn tại trên máy chủ.' });
 
-    // Increment download count (fire-and-forget)
+    // Tăng số lượt tải (không cần chờ kết quả)
     db.query('UPDATE documents SET download_count = download_count + 1 WHERE id = ?', [doc.id]);
 
     res.download(filePath, doc.file_original);
